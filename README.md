@@ -1,10 +1,59 @@
+# Spectrum / 彩序 · Godot 3D 卡牌模板与 UNO 风格示例
+
+本仓库包含独立可运行的通用 3D 卡牌模板，以及在模板上实现的经典 UNO 风格本地游戏。牌面为原创彩色图形，不含官方 UNO 图标或卡面素材。
+
+## 开始游戏
+
+用 **Godot 4.7.2** 导入 `project.godot`，按 F5。默认你对战三个机器人；Esc 可选择 2–8 人后重新开始。
+
+- 点击亮边手牌出牌；D /「摸一张」摸牌，随后可以打刚摸到的牌或保留结束回合
+- 万能牌先选颜色，取消不消耗卡牌；+4 允许虚张声势，受罚者可以质疑
+- 剩两张时可勾选「随本次出牌喊 UNO」；漏喊后、下一位实际行动前仍可补喊或被抓
+- 机器人行动前有可见停顿，留出喊 UNO / 抓漏喊的时间；机器人并不总会记得喊
+- V 第一 / 第三人称，T 俯视，右键转头，R 复位，Tab 收起真实 3D 手牌
+- Esc 暂停并查看规则、人数设置或切回独立模板演示
+- 每局结算对手剩牌分数，累计 500 分获胜；分数仅在当前运行中保留
+
+这是同机单人对机器人原型，不含联网、账号、存档、热加入、商业级 AI 或声音。人数固定为 2–8，是官方 2–10 人范围的一个子集。
+
+## 规则基线与明确约定
+
+基于 Mattel 的 [classic UNO Basic](https://service.mattel.com/instruction_sheets/UNO%20Basic%20IS.pdf) 和 [53641 规则](https://service.mattel.com/instruction_sheets/53641.pdf)：108 张、每人七张、同色 / 数字 / 符号匹配、一次只打一张、不叠加 +2 / +4、不抢出、不使用 7–0。两人 Reverse 等同 Skip。可主动摸牌，但摸后只可打刚摸到的那张。弃牌回收保留顶牌与当前颜色。
+
++4 的合法性按出牌前当前颜色检查，不因同数字 / 功能而非法。只有受罚者可质疑：成功则出牌者摸四，质疑者正常行动；失败则质疑者摸六并跳过；接受则摸四并跳过。质疑后保持出牌者选定颜色，是经典规则对后续顺序未详述处的明确实现约定。最后一张 +2 / +4 的罚牌和质疑先处理，再结算。
+
+首局使用固定座次，最后一位为庄家，首位通常先手，代替实体抽牌选庄；每局随机洗牌。初始 Skip / Reverse / +2 / Wild / +4 的处理已实现。只剩顶牌且所有玩家都无法出牌/摸牌时，以全员连续空摸后过牌作为平局，防止极端牌堆状态卡死。
+
+数字按面值，彩色功能牌 20，万能牌 50。UNO 漏喊窗口在下一位实际摸牌 / 出牌时关闭；程序分配轮次不会提前关闭它。AI 的 +4 质疑选择只使用公开状态，不查看对手秘密牌。
+
+## 分层与从玩法反馈到模板
+
+- `scripts/card_3d.gd` + `scenes/card_3d.tscn`：原可编辑 3D 卡牌，双面/隐藏/悬停/同一节点动画
+- `scripts/table_demo.gd` + `scenes/table_demo.tscn`：原自由操作模板，单独 F6 运行，原行为与 1211 项基线断言保留
+- `scripts/rules_table.gd`：新通用规则宿主，仅负责呈现任意规则模型快照。稳定卡牌 ID、任意手牌数量、自适应布局、单顶牌弃牌堆、隐藏牌堆节点、真实同节点飞行、固定玩家权限、请求信号与独立交互/模态锁；没有 UNO 依赖
+- `scripts/uno_rules.gd`：独立同步规则与回合状态，不依赖场景或 UI，可用固定随机种子测试
+- `scripts/uno_game.gd` + `scenes/uno_game.tscn`：规则与模板的适配、人机控制、颜色 / 质疑 / 暂停 / 结算 UI
+- `assets/uno/`：54 种原创卡面及牌背；`tools/generate_uno_art.py` 可用 Pillow 重建，运行游戏无需 Python
+
+通用宿主核心 API：`apply_state(player_ids, hands, deck_cards, discard_cards, texture_provider, animated)` 原子校验快照、同步稳定 ID 的原卡节点；`card_requested(id)` / `draw_requested` 只报告意图，由外部规则决定合法性。`set_interaction_blocked()` 仅锁规则操作，不禁用相机；`menu_open` 独立锁模态输入。`card_node(id)` / `player_hand(index)` / `discard_count()` 供宿主查询。牌堆数组最后一张为顶牌。卡牌视觉隐藏仅是本地表现，不是联机保密协议。
+
+## 测试
+
+```sh
+GODOT=/absolute/path/to/Godot_v4.7.2-stable_linux.x86_64 tools/test_all.sh
+```
+
+受限运行环境可将 XDG_DATA_HOME / XDG_CONFIG_HOME / XDG_CACHE_HOME 设为可写目录。测试串行执行，包含原模板四组、通用规则宿主、规则模型、游戏整合和两个场景烟测。运行日志位于忽略的 `tests/results/`。验证记录见 `UNO_TEST_REPORT.md`；旧模板报告保留于 `TEST_REPORT.md`。
+
+## 原模板使用说明
+
 # ARC · 通用 3D 卡牌
 
 独立的 Godot **4.7.2** 工程。真实 3D 圆角薄片卡牌、双面纹理、正八角透视桌面与八座位同世界浮空手牌，可作为自己的卡牌玩法的基础；没有绑定战斗、费用或 TCG 规则。
 
 ## 运行
 
-使用 Godot 4.7.2 导入 `project.godot`，按 F6/F5 运行主场景 `scenes/table_demo.tscn`。
+使用 Godot 4.7.2 导入 `project.godot`，打开 `scenes/table_demo.tscn` 后按 F6 运行模板演示；F5 默认运行彩序玩法。
 
 - 悬停：单张手牌向上弹出、放大并完整显示；离开后落回底边，其他手牌保持靠下
 - 左键：选中；Ctrl / Command + 点击增减多选；Enter 或「出牌」将所选手牌作为一组打出
