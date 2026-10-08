@@ -13,7 +13,8 @@ func run() -> void:
 	demo.choosing=false;demo.paused=false;demo.modal.hide()
 	demo.game.start_game(2,12)
 	if "--qa-result" in OS.get_cmdline_user_args():
-		demo.game.phase="finished";demo.game.winner=0;demo.game.score=85
+		demo.game.draw_pile.append_array(demo.game.hands[0]);demo.game.hands[0]=[]
+		demo.game.phase="finished";demo.game.winner=0
 		demo._sync(false)
 		return
 	# A legal, conserved 108-card setup with an illegal +4, awaiting human choice.

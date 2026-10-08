@@ -1,7 +1,7 @@
 class_name UnoRules
 extends RefCounted
 ## Synchronous, scene-independent 108-card UNO-style round.
-## House rules are opt-in; all-off retains the classic command behavior.
+## House rules are opt-in; opening and scoring use the local game variant.
 ## Player 0 sits left of the initial dealer (the final player). Card IDs remain
 ## unique through draws and recycling. Classic +4 bluffs are challengeable;
 ## the stacking variant accepts +4 freely and replaces challenges with debt.
@@ -18,7 +18,9 @@ var direction: int = 1
 var active_color: String = ""
 var phase: String = "idle"
 var winner: int = -1
+## Aggregate remaining points for diagnostics; never awarded to the finisher.
 var score: int = 0
+var initial_hand_size: int = 7
 var finish_reason: String = ""
 var drawn_card_id: int = -1
 var pending_draw: int = 0
@@ -67,9 +69,16 @@ static func build_deck() -> Array:
 	return deck
 
 
-func start_game(player_count: int, seed_value: int = 0, opts: Dictionary = {}) -> Dictionary:
+static func max_initial_hand_size(player_count: int) -> int:
+	return int(107 / player_count) if player_count >= 2 and player_count <= 8 else 0
+
+
+func start_game(player_count: int, seed_value: int = 0, opts: Dictionary = {}, hand_size: int = 7) -> Dictionary:
 	if player_count < 2 or player_count > 8:
 		return _error("请选择 2 至 8 位玩家。")
+	if hand_size < 1 or hand_size > max_initial_hand_size(player_count):
+		return _error("初始手牌须为 1 至 %d 张，保留至少一张起始牌。" % max_initial_hand_size(player_count))
+	initial_hand_size = hand_size
 	options = DEFAULT_OPTIONS.duplicate()
 	for key in DEFAULT_OPTIONS:
 		options[key] = bool(opts.get(key, false))
@@ -101,29 +110,18 @@ func start_game(player_count: int, seed_value: int = 0, opts: Dictionary = {}) -
 	_close_uno_window()
 	_empty_passes = 0
 	_empty_draw_blocked = false
-	for _round in 7:
+	for _round in initial_hand_size:
 		for player in player_count:
 			hands[player].append(draw_pile.pop_back())
 	var first: Dictionary = draw_pile.pop_back()
-	while first.value == "draw_four":
-		draw_pile.append(first)
-		_shuffle(draw_pile)
-		first = draw_pile.pop_back()
 	discard_pile.append(first)
 	active_color = first.color
-	match first.value:
-		"wild":
-			active_color = ""
-			phase = "choose_color"
-		"skip":
-			current_player = 1
-		"reverse":
-			direction = -1
-			current_player = player_count - 1
-		"draw_two":
-			_draw_many(0, 2)
-			current_player = 1
-	return _success("新一局开始。", {"initial_card": first.duplicate(), "player_count": player_count})
+	# The starter establishes only a match target. No skip, reverse or debt.
+	# Both wild types let player 1 choose, without consuming that first turn.
+	if first.color == "wild":
+		active_color = ""
+		phase = "choose_color"
+	return _success("新一局开始。", {"initial_card": first.duplicate(), "player_count": player_count, "initial_hand_size": initial_hand_size})
 
 
 func choose_initial_color(player: int, color: String) -> Dictionary:
@@ -469,7 +467,11 @@ func pass_draw(player: int) -> Dictionary:
 		phase = "finished"
 		finish_reason = "stalemate"
 		_close_uno_window()
-		return _success("所有玩家均无法出牌或摸牌，本局平局。")
+		score = 0
+		for hand in hands:
+			for card in hand:
+				score += card_points(card)
+		return _success("所有玩家均无法出牌或摸牌，按剩余手牌分结算。")
 	return _success("本回合结束。")
 
 
@@ -532,11 +534,28 @@ func catch_uno(catcher: int) -> Dictionary:
 
 
 static func card_points(card: Dictionary) -> int:
-	if card.value in ["wild", "draw_four"]:
-		return 50
-	if card.value in ACTIONS:
+	if card.value == "wild":
 		return 20
+	if card.value == "draw_four":
+		return 40
+	if card.value in ACTIONS:
+		return 10
 	return int(card.value)
+
+
+## Competition ranking: equal point totals share a rank (1, 1, 3).
+## Seat order is presentation only and is never a tie-breaker.
+func round_standings() -> Array:
+	var rows: Array = []
+	for player in hands.size():
+		var points: int = 0
+		for card in hands[player]:
+			points += card_points(card)
+		rows.append({"player": player, "points": points, "cards": hands[player].size(), "rank": 0})
+	rows.sort_custom(func(a, b): return a.points < b.points)
+	for index in rows.size():
+		rows[index].rank = rows[index - 1].rank if index > 0 and rows[index].points == rows[index - 1].points else index + 1
+	return rows
 
 
 func total_cards() -> int:

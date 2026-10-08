@@ -146,10 +146,10 @@ func run() -> void:
 	check(demo.game.hands==new_ids and demo.total_cards()==108,"restart cancels prior flights")
 	# Finished-state menus must preserve access to Next Round and score exactly once.
 	demo.choosing=false;demo.game.phase="finished";demo.game.winner=0;demo.game.score=17;demo.paused=false;demo._show_result()
-	var score:int=demo.match_scores[0]
+	var standings:Array=demo.game.round_standings()
 	demo.paused=false;demo._open_pause();demo._close_pause()
 	check(demo.paused and demo.modal.visible,"finished pause return restores result")
-	check(demo.match_scores[0]==score,"finished pause return scores only once")
+	check(demo.game.round_standings()==standings,"finished pause return scores only once")
 	# Emit the actual pressed signal: callbacks rebuild the modal while the
 	# old button is still emitting, so detach + deferred free is mandatory.
 	var menu_button: Button = null
@@ -160,8 +160,8 @@ func run() -> void:
 	check(demo.modal_box.get_child(0) is Label and demo.modal_box.get_child(0).text == "彩序 / 牌桌菜单","pressed-signal rebuild leaves no stale result button")
 	var escape := InputEventKey.new();escape.keycode=KEY_ESCAPE;escape.pressed=true
 	demo._input(escape)
-	check(demo.modal_box.get_child(0) is Label and "赢得" in demo.modal_box.get_child(0).text,"Escape from finished menu restores result")
-	check(demo.match_scores[0]==score,"pressed-signal and Escape flow never double-scores")
+	check(demo.modal_box.get_child(0) is Label and "本局结算" in demo.modal_box.get_child(0).text,"Escape from finished menu restores result")
+	check(demo.game.round_standings()==standings,"pressed-signal and Escape flow never double-scores")
 	await process_frame
 	check(not is_instance_valid(menu_button),"pressed control is eventually freed safely")
 	demo.queue_free();await process_frame

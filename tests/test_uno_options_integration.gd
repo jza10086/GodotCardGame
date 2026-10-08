@@ -181,7 +181,7 @@ func test_settings(demo) -> void:
 	if next_round != null:
 		next_round.pressed.emit()
 	check(options_match(demo.round_options, options_for(15)) and options_match(demo.game.options, options_for(15)), "Next Round preserves all selected options")
-	check(demo.round_count == 2 and demo.match_scores[0] == 17, "Next Round preserves match score and increments round")
+	check(demo.round_count == 2 and demo.game.score == 0, "Next Round resets round scoring and increments round")
 	await process_frame
 	check(not demo.paused, "Next Round resumes the controller after the pressed callback")
 	if demo.choosing:
@@ -192,15 +192,12 @@ func test_settings(demo) -> void:
 	demo.game.score = 500
 	demo.paused = false
 	demo._show_result()
-	var new_match: Button = button_named(demo.modal_box, "新比赛")
-	check(new_match != null, "reaching 500 points exposes New Match")
-	if new_match != null:
-		new_match.pressed.emit()
-	check(options_match(demo.round_options, options_for(15)) and options_match(demo.game.options, options_for(15)), "New Match preserves all selected options after a championship")
-	var scores_reset: bool = true
-	for score in demo.match_scores:
-		scores_reset = scores_reset and score == 0
-	check(scores_reset and demo.round_count == 1, "New Match resets scores and the round counter")
+	check(button_named(demo.modal_box, "新比赛") == null, "500 aggregate points do not trigger an obsolete championship")
+	var next_again: Button = button_named(demo.modal_box, "下一局")
+	check(next_again != null, "every result retains Next Round")
+	if next_again != null:
+		next_again.pressed.emit()
+	check(demo.game.score == 0 and demo.round_count == 3, "each subsequent round has independent scoring")
 	var supplied: Dictionary = options_for(15)
 	demo._start_game(3, false, supplied)
 	supplied["jump_in"] = false

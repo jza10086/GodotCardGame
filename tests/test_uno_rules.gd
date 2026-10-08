@@ -102,23 +102,17 @@ func test_deck_and_start() -> void:
 			check(unique_and_conserved(game), "opening conserves all 108 cards")
 			var first: Dictionary = game.top_card()
 			seen_initial[first.value] = true
-			check(first.value != "draw_four", "opening +4 is replaced and reshuffled")
 			for player in player_count:
-				var expected: int = 9 if first.value == "draw_two" and player == 0 else 7
-				check(game.hands[player].size() == expected, "seven-card deal plus opening +2")
-			match first.value:
-				"skip", "draw_two":
-					check(game.current_player == 1, "opening skip/+2 skips dealer-left")
-				"reverse":
-					check(game.direction == -1 and game.current_player == player_count - 1, "opening reverse starts dealer anticlockwise")
-				"wild":
-					check(game.phase == "choose_color" and game.current_player == 0, "opening wild lets dealer-left choose")
-					check(not game.choose_initial_color(1, "red").ok, "only initial first player chooses")
-					check(not game.choose_initial_color(0, "wild").ok, "initial wild needs standard color")
-					check(game.choose_initial_color(0, "green").ok and game.active_color == "green" and game.current_player == 0, "initial color selection keeps first turn")
-				_:
-					check(game.phase == "playing" and game.current_player == 0, "opening number starts dealer-left")
-	for action in ["skip", "reverse", "draw_two", "wild"]:
+				check(game.hands[player].size() == 7, "exact seven-card deal regardless of starter")
+			check(game.current_player == 0 and game.direction == 1 and game.pending_draw == 0 and game.pending_play.is_empty(), "all starters preserve player 1 and forward order without effects")
+			if first.color == "wild":
+				check(game.phase == "choose_color", "both wild starters require a playable color")
+				check(not game.choose_initial_color(1, "red").ok, "only player 1 chooses")
+				check(not game.choose_initial_color(0, "wild").ok, "initial wild needs standard color")
+				check(game.choose_initial_color(0, "green").ok and game.active_color == "green" and game.current_player == 0, "initial color keeps first turn")
+			else:
+				check(game.phase == "playing" and game.active_color == first.color, "colored starter establishes matching color only")
+	for action in ["skip", "reverse", "draw_two", "wild", "draw_four"]:
 		check(seen_initial.has(action), "seeded openings cover " + action)
 	var first_game = Rules.new()
 	var second_game = Rules.new()
@@ -334,7 +328,7 @@ func test_recycling_and_stalemate() -> void:
 		var result: Dictionary = game.draw_card(player)
 		check(result.ok and result.drawn_count == 0 and not result.playable and game.phase == "drawn", "empty deck offers explicit pass")
 		check(game.pass_draw(player).ok, "empty deck pass is allowed")
-	check(game.phase == "finished" and game.winner == -1 and game.score == 0 and game.finish_reason == "stalemate", "all blocked empty passes end in stalemate")
+	check(game.phase == "finished" and game.winner == -1 and game.score == 6 and game.finish_reason == "stalemate", "all blocked empty passes end in stalemate")
 	game = fixture(2)
 	game.draw_pile = []
 	game.hands = [[card("red", "1")], [card("green", "2")]]
@@ -362,13 +356,13 @@ func test_recycling_and_stalemate() -> void:
 func test_finishing_and_scoring() -> void:
 	check(Rules.card_points(card("red", "0")) == 0 and Rules.card_points(card("blue", "9")) == 9, "number points")
 	for action in Rules.ACTIONS:
-		check(Rules.card_points(card("green", action)) == 20, "colored action points")
+		check(Rules.card_points(card("green", action)) == 10, "colored action points")
 	for value in ["wild", "draw_four"]:
-		check(Rules.card_points(card("wild", value)) == 50, "wild points")
+		check(Rules.card_points(card("wild", value)) == (20 if value == "wild" else 40), "wild points")
 	var game = fixture()
 	game.hands = [[card("red", "1")], [card("green", "9"), card("blue", "skip")], [card("wild", "draw_four"), card("wild", "wild")]]
 	game.play_card(0, 0)
-	check(game.phase == "finished" and game.winner == 0 and game.score == 129 and game.finish_reason == "winner", "last ordinary card finishes and scores all opponents")
+	check(game.phase == "finished" and game.winner == 0 and game.score == 79 and game.finish_reason == "winner", "last ordinary card finishes and scores all opponents")
 	var before: String = snapshot(game)
 	check(not game.play_card(1, 0).ok and not game.draw_card(1).ok and not game.announce_uno(0).ok and not game.catch_uno(1).ok, "finished round rejects all gameplay commands")
 	check(snapshot(game) == before, "finished state cannot mutate through invalid commands")

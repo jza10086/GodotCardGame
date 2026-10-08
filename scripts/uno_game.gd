@@ -32,13 +32,13 @@ var choosing := false
 var bot_clock := 0.0
 var bot_delay := 1.65
 var game_started := false
-var round_seed := 0
 var launch_seed := -1
 var round_count := 0
 var last_message := ""
-var match_scores: Array = []
+var round_hand_size := 7
+var hand_size_option: SpinBox
+var hand_size_hint: Label
 var human_catch_clock := 0.0
-var scored_round := -1
 var rules_label: Label
 const OPTION_LABELS := {
 	"continuous_draw": "持续抽牌：无牌可出时摸到能出，并立即打出",
@@ -102,7 +102,7 @@ func _build_game_ui() -> void:
 	title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	title.add_child(text_label("S P E C T R U M   /   彩序",23,Color("f1ecd5")))
-	title.add_child(text_label("经典规则 + 可选房规 · 原创牌面 · 本地人机",13,Color("93b8b9")))
+	title.add_child(text_label("自定义起牌 / 计分 + 可选房规 · 本地人机",13,Color("93b8b9")))
 	header_row.add_child(_styled_button("第一 / 第三人称 V",toggle_view))
 	header_row.add_child(_styled_button("俯视 T",toggle_top_down))
 	header_row.add_child(_styled_button("菜单 Esc",_open_pause))
@@ -153,23 +153,25 @@ func _clear_modal() -> void:
 		modal_box.remove_child(child)
 		child.queue_free()
 
-func _start_game(count: int, keep_scores := false, options: Dictionary = {}) -> void:
+func _start_game(count: int, next_round := false, options: Dictionary = {}, hand_size: int = 7) -> void:
+	var requested_size: int = round_hand_size if next_round else hand_size
+	var seed_value: int = launch_seed + (round_count if next_round else 0) if launch_seed >= 0 else int(Time.get_ticks_usec()) % 2147483647
+	var result: Dictionary = game.start_game(count, seed_value, round_options if next_round else options, requested_size)
+	if not result.ok:
+		last_message = result.message
+		_refresh_hud()
+		return
 	paused=false;choosing=false;pending_card_id=null;modal.hide();announce_check.button_pressed=false
 	players.clear()
 	for i in count: players.append("你" if i==0 else "机器人 %d" % i)
-	if not keep_scores or match_scores.size()!=count:
-		match_scores=[]
-		for i in count:match_scores.append(0)
+	if not next_round:
 		round_count=0
-		scored_round=-1
-	round_count+=1
-	round_seed=launch_seed+round_count-1 if launch_seed>=0 else int(Time.get_ticks_usec()) % 2147483647
-	if not keep_scores:
 		round_options=options.duplicate(true)
-	game.start_game(count,round_seed,round_options)
+		round_hand_size=hand_size
+	round_count+=1
 	jump_clocks.clear();seen_reaction_card=-1
 	game_started=true;bot_clock=0;human_catch_clock=0
-	last_message="第 %d 局开始 · 每人七张 · %s" % [round_count,_option_summary()]
+	last_message="第 %d 局开始 · 每人 %d 张 · 1号先行 · %s" % [round_count,round_hand_size,_option_summary()]
 	_sync(false)
 	if game.phase=="choose_color" and game.current_player==0:_show_color(null)
 
@@ -204,7 +206,7 @@ func _refresh_hud() -> void:
 	color_indicator.add_theme_color_override("font_color",COLOR_INKS.get(game.active_color,Color.WHITE))
 	for c in roster.get_children():c.free()
 	for i in players.size():
-		var line: String="%s %s  ·  %d 张  ·  %d 分" % ["▶" if i==game.current_player else "  ",players[i],game.hands[i].size(),match_scores[i]]
+		var line: String="%s %s  ·  %d 张" % ["▶" if i==game.current_player else "  ",players[i],game.hands[i].size()]
 		roster.add_child(text_label(line,16,Color("ffe5a0") if i==game.current_player else Color("91b4b5")))
 	event_label.text=last_message
 	var locked: bool=paused or choosing or not flights.is_empty()
@@ -332,6 +334,12 @@ func _open_pause() -> void:
 	for n in range(2,9):count_option.add_item("%d 人：你 + %d 个机器人" % [n,n-1],n)
 	count_option.select(players.size()-2);row.add_child(count_option)
 	row.add_child(_styled_button("重新开始",_restart_with_options))
+	var hand_row:=HBoxContainer.new();modal_box.add_child(hand_row)
+	hand_row.add_child(text_label("初始手牌",16,Color("cbe0db")))
+	hand_size_option=SpinBox.new();hand_size_option.min_value=1;hand_size_option.max_value=RULES.max_initial_hand_size(players.size());hand_size_option.step=1;hand_size_option.value=round_hand_size;hand_size_option.custom_minimum_size.x=100;hand_row.add_child(hand_size_option)
+	hand_size_hint=text_label("",14,Color("b9ceca"));hand_row.add_child(hand_size_hint)
+	count_option.item_selected.connect(_update_hand_limit)
+	_update_hand_limit(0)
 	option_checks.clear()
 	modal_box.add_child(text_label("额外规则 · 仅重新开始时生效，继续游戏不会更改本局",15,Color("ffe0a0")))
 	for key in OPTION_LABELS:
@@ -340,12 +348,18 @@ func _open_pause() -> void:
 		check.add_theme_font_size_override("font_size",15)
 		option_checks[key]=check;modal_box.add_child(check)
 	modal_box.add_child(_styled_button("打开通用模板演示",func():get_tree().change_scene_to_file("res://scenes/table_demo.tscn")))
-	rules_label=text_label("本局：%s\n抢牌截止下一次实际出牌 / 摸牌，房主按到达顺序判定。\n同色、数字 / 符号匹配；两人反转等同跳过。\n剩一张喊 UNO；漏喊可被抓，罚两张。\n叠加开启时不质疑 +4；关闭时保留经典质疑。\n数字按面值，功能牌 20，万能牌 50；500 分获胜。" % _option_summary(),15,Color("b9ceca"));modal_box.add_child(rules_label)
+	rules_label=text_label("本局：%s\n抢牌截止下一次实际出牌 / 摸牌，房主按到达顺序判定。\n同色、数字 / 符号匹配；两人反转等同跳过。\n剩一张喊 UNO；漏喊可被抓，罚两张。\n叠加开启时不质疑 +4；关闭时保留经典质疑。\n起始牌不触发功能；万能牌由1号先选色，1号先行。\n剩牌：数字面值 / 功能10 / 换色20 / +4为40。\n每局按剩牌分由低到高排名，同分并列，不累计。" % _option_summary(),15,Color("b9ceca"));modal_box.add_child(rules_label)
+
+func _update_hand_limit(_index: int) -> void:
+	var limit: int=RULES.max_initial_hand_size(count_option.get_selected_id())
+	hand_size_option.max_value=limit
+	hand_size_hint.text="1–%d 张 / 人（保留起始牌）" % limit
 
 func _restart_with_options() -> void:
 	var next_options: Dictionary={}
 	for key in option_checks:next_options[key]=option_checks[key].button_pressed
-	_start_game(count_option.get_selected_id(),false,next_options)
+	hand_size_option.apply()
+	_start_game(count_option.get_selected_id(),false,next_options,int(hand_size_option.value))
 
 func _option_summary() -> String:
 	var enabled: Array[String]=[]
@@ -363,21 +377,21 @@ func _show_result() -> void:
 	if paused:return
 	paused=true;release_mouse_look();modal.show();_clear_modal()
 	var won: int=game.winner
-	if won>=0 and scored_round!=round_count:
-		match_scores[won]+=game.score
-		scored_round=round_count
-	var champ: int=-1
-	for i in match_scores.size():
-		if match_scores[i]>=500:champ=i
-	modal_box.add_child(text_label("%s 赢得比赛！" % players[champ] if champ>=0 else ("%s 赢得本局！" % players[won] if won>=0 else "本局平局"),29,Color("ffe0a0")))
-	modal_box.add_child(text_label("本局得分 +%d\n%s" % [game.score,"\n".join(_score_lines())],20,Color("bbd8d2")))
-	modal_box.add_child(_styled_button("新比赛" if champ>=0 else "下一局",func():_start_game(players.size(),champ<0,round_options),true))
+	modal_box.add_child(text_label("本局结算 · 剩牌分越低排名越高",27,Color("ffe0a0")))
+	modal_box.add_child(text_label("%s 已出完手牌" % players[won] if won>=0 else "牌已用尽且无人可出，按剩牌分结算",17,Color("bbd8d2")))
+	modal_box.add_child(text_label("\n".join(_score_lines()),20,Color("bbd8d2")))
+	modal_box.add_child(text_label("数字面值 · 功能10 · 换色20 · +4为40\n同分并列；每局独立结算，不累计分数",15,Color("b9ceca")))
+	modal_box.add_child(_styled_button("下一局",func():_start_game(players.size(),true),true))
 	modal_box.add_child(_styled_button("人数 / 规则菜单",func():paused=false;_open_pause()))
 	_refresh_hud()
 
 func _score_lines() -> Array[String]:
 	var lines: Array[String]=[]
-	for i in players.size():lines.append("%s：%d 分" % [players[i],match_scores[i]])
+	var rows: Array=game.round_standings()
+	var counts: Dictionary={}
+	for row in rows:counts[row.points]=int(counts.get(row.points,0))+1
+	for row in rows:
+		lines.append("%s第 %d 名  %s：%d 分（剩 %d 张）" % ["并列" if counts[row.points]>1 else "",row.rank,players[row.player],row.points,row.cards])
 	return lines
 
 func _bot_color(player: int) -> String:
