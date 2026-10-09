@@ -625,6 +625,7 @@ func build_ui() -> void:
 	titles.add_child(text_label("调试与本局设置 · 修改下局人数后，点击开始新局生效",16,Color("92aea6")))
 	resume_button = button("继续游戏  Esc",close_debug_menu,true)
 	titles.add_child(resume_button)
+	titles.add_child(button("返回玩法大厅",func():get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")))
 	debug_menu.hide()
 
 func open_debug_menu() -> void:

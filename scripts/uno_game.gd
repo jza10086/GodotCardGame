@@ -347,7 +347,9 @@ func _open_pause() -> void:
 		check.button_pressed=bool(round_options.get(key,false))
 		check.add_theme_font_size_override("font_size",15)
 		option_checks[key]=check;modal_box.add_child(check)
-	modal_box.add_child(_styled_button("打开通用模板演示",func():get_tree().change_scene_to_file("res://scenes/table_demo.tscn")))
+	var navigation:=HBoxContainer.new();modal_box.add_child(navigation)
+	navigation.add_child(_styled_button("返回玩法大厅",func():get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")))
+	navigation.add_child(_styled_button("打开通用模板演示",func():get_tree().change_scene_to_file("res://scenes/table_demo.tscn")))
 	rules_label=text_label("本局：%s\n抢牌截止下一次实际出牌 / 摸牌，房主按到达顺序判定。\n同色、数字 / 符号匹配；两人反转等同跳过。\n剩一张喊 UNO；漏喊可被抓，罚两张。\n叠加开启时不质疑 +4；关闭时保留经典质疑。\n起始牌不触发功能；万能牌由1号先选色，1号先行。\n剩牌：数字面值 / 功能10 / 换色20 / +4为40。\n每局按剩牌分由低到高排名，同分并列，不累计。" % _option_summary(),15,Color("b9ceca"));modal_box.add_child(rules_label)
 
 func _update_hand_limit(_index: int) -> void:
