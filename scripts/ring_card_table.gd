@@ -7,6 +7,7 @@ signal navigation_changed
 
 const RING_DECK_ORIGIN := Vector3(-4.8, 0, 0)
 
+var bottom_hud_margin := 185.0 # Host-configurable unobstructed top-view band.
 var center_label: Label3D
 var _seat_captions: Dictionary = {}
 
@@ -181,10 +182,10 @@ func fit_top_camera() -> void:
 	if not is_instance_valid(top_camera): return
 	var viewport_size := get_viewport().get_visible_rect().size
 	# Fit the complete ring into the unobstructed band, reserving the external
-	# host's top header (100px) and bottom action/status panel (160px), plus room
+	# host's top header and configurable bottom action/status panel, plus room
 	# for billboard labels. Measure projection to respect Camera3D aspect mode.
 	var safe_top := 120.0
-	var safe_bottom := maxf(safe_top + 80.0, viewport_size.y - 185.0)
+	var safe_bottom := maxf(safe_top + 80.0, viewport_size.y - bottom_hud_margin)
 	var safe_width := maxf(100.0, viewport_size.x - 100.0)
 	var pixels_per_unit := minf(safe_width / 28.0, (safe_bottom - safe_top) / 26.0)
 	top_camera.position.z = 0

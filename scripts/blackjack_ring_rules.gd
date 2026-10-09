@@ -1,6 +1,6 @@
 class_name BlackjackRingRules
 extends RefCounted
-## Eight independent virtual bankrolls versus one unrestricted expected-profit dealer. Six physical decks.
+## Eight independent virtual bankrolls versus one unrestricted AI or human dealer. Six physical decks.
 ## Commands are synchronous, version checked and debit/pay each stake once.
 ## Opening order is eligible P0..P7, dealer, repeated twice. Draw pile back is top.
 
@@ -20,6 +20,7 @@ var players: Array = []
 var dealer_hand: Array = []
 var dealer_revealed: bool = false
 var dealer_advice: Dictionary = {}
+var dealer_mode: String = "ai"
 var draw_pile: Array = []
 var discard_pile: Array = []
 var state_version: int = 0
@@ -65,9 +66,10 @@ func can_double() -> bool:
 	return p.hand.size() == 2 and not p.acted and p.balance >= p.bet
 
 ## Explicit local-human stakes for all eight fixed seats. Zero voluntarily skips.
-func start_round(stakes: Array, expected_version: int = -1) -> Dictionary:
+func start_round(stakes: Array, expected_version: int = -1, mode: String = "") -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
 	if phase != "betting" and phase != "settled": return _error("请先完成当前牌局。")
+	if mode != "" and mode not in ["ai", "human"]: return _error("无效的庄家模式。")
 	if stakes.size() != PLAYER_COUNT: return _error("请明确全部八个座位的下注；0 为跳过。")
 	var participants: int = 0
 	for i in PLAYER_COUNT:
@@ -80,6 +82,7 @@ func start_round(stakes: Array, expected_version: int = -1) -> Dictionary:
 	var available: int = draw_pile.size() + discard_pile.size() + dealer_hand.size()
 	for p in players: available += p.hand.size()
 	if available < (participants + 1) * 2: return _error("牌堆不足，无法发牌。")
+	if mode != "": dealer_mode = mode
 	_collect_hands()
 	_clear_round()
 	_prepare_shoe()
@@ -160,6 +163,7 @@ func ai_step(_expected_version: int = -1) -> Dictionary:
 func dealer_step(expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
 	if phase != "dealer": return _error("当前不是庄家行动。")
+	if dealer_mode != "ai": return _error("玩家庄家须手动要牌或停牌。")
 	var card: Dictionary = {}
 	var advice: Dictionary = DealerSolver.choose_action(dealer_hand, players, DealerSolver.counts_from_cards(draw_pile))
 	dealer_advice = advice.duplicate(true)
@@ -170,6 +174,46 @@ func dealer_step(expected_version: int = -1) -> Dictionary:
 		if hand_value(dealer_hand).bust or dealer_hand.size() >= 5: _settle_all()
 	else: _settle_all()
 	return _success("庄家按最大期望净收益行动。", {"card": card.duplicate(), "advice": advice})
+
+## Modes persist across rounds and lobby re-entry, but cannot change mid-round.
+func set_dealer_mode(mode: String, expected_version: int = -1) -> Dictionary:
+	if _stale(expected_version): return _error("牌局已变化，请重试。")
+	if phase not in ["betting", "settled"]: return _error("仅两局之间可更换庄家模式。")
+	if mode not in ["ai", "human"]: return _error("无效的庄家模式。")
+	dealer_mode = mode
+	dealer_advice.clear()
+	return _success("庄家模式已更新。")
+
+func can_dealer_hit() -> bool:
+	return dealer_mode == "human" and phase == "dealer" and not hand_value(dealer_hand).bust and dealer_hand.size() < 5
+
+func can_dealer_stand() -> bool:
+	return can_dealer_hit()
+
+func dealer_hit(expected_version: int = -1) -> Dictionary:
+	if _stale(expected_version): return _error("牌局已变化，请重试。")
+	if not can_dealer_hit(): return _error("当前不能为庄家要牌。")
+	if draw_pile.is_empty(): return _void_round()
+	var card: Dictionary = draw_pile.pop_back()
+	dealer_hand.append(card)
+	if hand_value(dealer_hand).bust or dealer_hand.size() >= 5: _settle_all()
+	return _success("庄家已要一张牌。", {"card": card.duplicate()})
+
+func dealer_stand(expected_version: int = -1) -> Dictionary:
+	if _stale(expected_version): return _error("牌局已变化，请重试。")
+	if not can_dealer_stand(): return _error("当前不能为庄家停牌。")
+	_settle_all()
+	return _success("庄家停牌，全部手牌已结算。")
+
+## Distribution only: aggregate the unordered remaining shoe, never inspect its top.
+## A is bucket 1 (usable as 1 or 11); 10/J/Q/K share bucket 10.
+func next_card_probabilities() -> Dictionary:
+	var counts: Array = DealerSolver.counts_from_cards(draw_pile)
+	var points: Array = []
+	for i in 10:
+		points.append({"point": i + 1, "count": counts[i],
+			"probability": float(counts[i]) / draw_pile.size() if not draw_pile.is_empty() else 0.0})
+	return {"remaining": draw_pile.size(), "points": points}
 
 func next_round(expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
@@ -200,7 +244,7 @@ func set_next_draws(card_ids: Array, expected_version: int = -1) -> Dictionary:
 ## Internal snapshot for the local controller/tests, NOT a network privacy API.
 func snapshot() -> Dictionary:
 	return {"phase": phase, "current_player": current_player, "players": players.duplicate(true),
-		"dealer_hand": dealer_hand.duplicate(true), "dealer_revealed": dealer_revealed, "dealer_advice": dealer_advice.duplicate(true),
+		"dealer_hand": dealer_hand.duplicate(true), "dealer_revealed": dealer_revealed, "dealer_advice": dealer_advice.duplicate(true), "dealer_mode": dealer_mode,
 		"draw_pile": draw_pile.duplicate(true), "discard_pile": discard_pile.duplicate(true),
 		"state_version": state_version, "round_number": round_number, "shoe_shuffles": shoe_shuffles}
 
@@ -218,7 +262,8 @@ func _advance_player() -> void:
 		if p.bet > 0 and p.result.is_empty() and p.status != "bust": needs_comparison = true
 	if needs_comparison:
 		phase = "dealer"
-		dealer_advice = DealerSolver.choose_action(dealer_hand, players, DealerSolver.counts_from_cards(draw_pile))
+		if dealer_mode == "ai":
+			dealer_advice = DealerSolver.choose_action(dealer_hand, players, DealerSolver.counts_from_cards(draw_pile))
 	else: _settle_all()
 
 func _settle_all(voided: bool = false) -> void:

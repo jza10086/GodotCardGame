@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 mkdir -p tests/results
 "$GODOT" --headless --path . --editor --import --quit > tests/results/import.log 2>&1
-TESTS=(test_cards test_animations test_views test_menu test_rules_table test_uno_rules test_uno_options test_uno_integration test_uno_options_integration test_uno_scoring_review test_blackjack_rules test_blackjack_integration test_blackjack_review test_blackjack_review_integration test_blackjack_ring_rules test_blackjack_dealer_solver test_blackjack_dealer_payoffs test_blackjack_dealer_oracle test_ring_card_table test_blackjack_ring_review test_blackjack_ring_review_integration)
+TESTS=(test_cards test_animations test_views test_menu test_rules_table test_uno_rules test_uno_options test_uno_integration test_uno_options_integration test_uno_scoring_review test_blackjack_rules test_blackjack_integration test_blackjack_review test_blackjack_review_integration test_blackjack_ring_rules test_blackjack_dealer_solver test_blackjack_dealer_payoffs test_blackjack_dealer_oracle test_ring_card_table test_blackjack_ring_review test_blackjack_ring_review_integration test_blackjack_manual_dealer_review test_blackjack_manual_dealer_ui_review)
 for test in "${TESTS[@]}"; do
   "$GODOT" --headless --max-fps 60 --path . --script "res://tests/$test.gd" > "tests/results/$test.log" 2>&1
   tail -1 "tests/results/$test.log"
