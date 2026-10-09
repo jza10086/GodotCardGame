@@ -45,7 +45,7 @@ func finish(m: RefCounted) -> void:
 			break
 		if m.phase == "dealer": check(m.dealer_step().ok, "dealer accepted")
 		elif m.current_player == 0: check(m.stand().ok, "human stand")
-		else: check(m.ai_step().ok, "bot step")
+		else: check(m.stand().ok, "manual seat stand")
 
 func conservation(m: RefCounted) -> void:
 	var seen: Dictionary = {}
@@ -65,11 +65,11 @@ func run() -> void:
 	check(m.players.size() == 8,"eight seats")
 	for p in m.players: check(p.balance == 1000,"independent 1000")
 	var before: Dictionary = m.snapshot()
-	for bad in [-10,0,5,15,1010]: check(not m.start_round(bad).ok,"reject invalid stake")
+	for bad in [-10,0,5,15,1010]: check(not m.start_round([bad,0,0,0,0,0,0,0]).ok,"reject invalid stake")
 	check(m.snapshot() == before,"invalid stakes atomic")
 	check(not m.set_next_draws([0,0]).ok and not m.set_next_draws([312]).ok,"bad fixtures reject")
 	check(m.snapshot() == before,"invalid fixture atomic")
-	check(m.start_round(100).ok,"opening")
+	check(m.start_round([100,100,100,100,100,100,100,100]).ok,"opening")
 	check(m.draw_pile.size() == 294,"18 opening cards")
 	check(not m.reset_bankroll().ok,"active reset rejected")
 	check(not m.next_round().ok,"active next rejected")
@@ -91,21 +91,22 @@ func run() -> void:
 	var hands: Array = same_hands(10,7)
 	hands[0]=[1,13]
 	m=fixture(hands,[1,10])
-	check(m.start_round(100).ok,"dealer natural")
+	check(m.start_round([100,100,100,100,100,100,100,100]).ok,"dealer natural")
 	check(m.phase=="settled","peek immediate")
-	check(m.players[0].balance==1000 and m.players[0].result.outcome=="push","both natural push")
+	check(m.players[0].balance==1200 and m.players[0].result.payout==300,"both natural player wins 2:1")
 	for i in range(1,8): check(m.players[i].balance==900 and m.players[i].result.outcome=="dealer_blackjack","dealer natural beats player")
 	check(not m.double_down().ok,"no double after peek")
 
 	m=fixture(hands,[10,7])
-	m.start_round(100)
+	m.start_round([100,100,100,100,100,100,100,100])
 	check(m.current_player==1,"skip human natural")
+	check(m.players[0].balance==1200 and m.players[0].result.payout==300,"natural paid before any other player action")
 	finish(m)
-	check(m.players[0].balance==1150 and m.players[0].result.payout==250,"natural 3:2")
-	for i in range(1,8): check(m.players[i].balance==1000,"independent push")
+	check(m.players[0].balance==1200 and m.players[0].result.payout==300,"natural 2:1")
+	for i in range(1,8): check(m.players[i].balance==900 or m.players[i].balance==1000 or m.players[i].balance==1100,"independent ordinary settlement")
 
 	m=fixture(same_hands(5,6),[10,7],[10,10,10,10,10,10,10,10])
-	m.start_round(100)
+	m.start_round([100,100,100,100,100,100,100,100])
 	for i in 8:
 		check(m.current_player==i,"serial seat %d"%i)
 		var size_before: int=m.draw_pile.size()
@@ -117,20 +118,19 @@ func run() -> void:
 	conservation(m)
 
 	m=fixture(same_hands(10,6),[5,6],[10,10,10,10,10,10,10,10])
-	m.start_round(100)
+	m.start_round([100,100,100,100,100,100,100,100])
 	for i in 8: check(m.hit().ok,"all bust hit")
 	check(m.phase=="settled" and m.dealer_hand.size()==2,"all bust no dealer draws")
 	for p in m.players: check(p.balance==900 and p.result.outcome=="bust","bust independent")
 
 	m=fixture(same_hands(10,8),[1,6])
-	m.start_round(100)
+	m.start_round([100,100,100,100,100,100,100,100])
 	for i in 8: m.stand()
-	m.dealer_step()
-	check(m.phase=="settled" and m.dealer_hand.size()==2,"soft17 stand")
-	for p in m.players: check(p.balance==1100,"beat soft17")
+	finish(m)
+	check(m.phase=="settled","unrestricted dealer completes")
 
 	m=fixture(same_hands(5,6),[10,7])
-	m.start_round(100)
+	m.start_round([100,100,100,100,100,100,100,100])
 	m.discard_pile.append_array(m.draw_pile)
 	m.draw_pile.clear()
 	check(m.double_down().ok,"exhaustion is void command")
@@ -143,9 +143,9 @@ func run() -> void:
 	m.players[0].balance=0
 	m.players[1].balance=5
 	m.players[2].balance=35
-	check(m.start_round(0).ok,"bankrupt spectate")
+	check(m.start_round([0,0,30,100,100,100,100,100]).ok,"bankrupt spectate")
 	check(m.players[0].status=="skipped" and m.players[1].status=="skipped","skip bankrupt seats")
-	check(m.players[2].bet==30 and m.players[2].balance==5,"bot affordable whole step")
+	check(m.players[2].bet==30 and m.players[2].balance==5,"explicit affordable whole step")
 	finish(m)
 	check(m.players[0].balance==0 and m.players[1].balance==5,"no automatic free bankroll")
 	check(m.reset_bankroll().ok,"explicit reset allowed")
@@ -153,12 +153,30 @@ func run() -> void:
 
 	var ace: Dictionary={"rank":1}
 	check(Rules.hand_value([ace,ace,{"rank":9}]).total==21,"multiple ace values")
-	check(Rules.decision([ace,{"rank":7}],{"rank":6},100,100,true)=="double","soft18 double6")
-	check(Rules.decision([ace,{"rank":7}],{"rank":9},100,100,true)=="hit","soft18 hit9")
-	check(Rules.decision([ace,{"rank":8}],{"rank":10},100,100,true)=="stand","soft19 stand")
-	check(Rules.decision([{"rank":5},{"rank":6}],{"rank":6},99,100,true)=="hit","no unaffordable double")
-	check(Rules.decision([{"rank":10},{"rank":6}],{"rank":6},100,100,true)=="stand","hard16 vs6")
-	check(Rules.decision([{"rank":10},{"rank":6}],ace,100,100,true)=="hit","hard16 vs ace")
+	m=Rules.new(1)
+	m.start_round([100,0,100,0,0,0,0,0])
+	before=m.snapshot()
+	check(not m.ai_step().ok and before==m.snapshot(),"no AI player mutation")
+	check(m.players[1].hand.is_empty() and m.players[2].hand.size()==2,"manual sparse two seats")
+	m.stand()
+	if m.phase=="player":check(m.current_player==2,"manual sparse seat identity")
+	finish(m)
+
+	# Five-card lock, dealer comparison, bust precedence, and no immediate payment.
+	m=fixture(same_hands(2,3),[10,7],[2,2,2])
+	m.start_round([100,100,100,100,100,100,100,100])
+	for i in 3:m.hit()
+	check(m.players[0].status=="five_card" and m.players[0].result.is_empty(),"five locks pending dealer")
+	check(m.players[0].balance==900 and m.current_player==1,"five not paid early")
+	# Direct deterministic finalization isolates payout comparator from dealer policy.
+	m.dealer_hand=[{"rank":2},{"rank":3},{"rank":2},{"rank":2},{"rank":2}]
+	m._settle_all()
+	check(m.players[0].result.outcome=="push" and m.players[0].result.payout==100,"both five push")
+	m=fixture(same_hands(2,3),[10,7],[2,2,2])
+	m.start_round([100,100,100,100,100,100,100,100])
+	for i in 3:m.hit()
+	m._settle_all()
+	check(m.players[0].result.outcome=="five_card" and m.players[0].result.payout==200,"five beats dealer ordinary 17")
 
 	m=Rules.new(984211)
 	for round_index in 400:
@@ -166,7 +184,9 @@ func run() -> void:
 			m.reset_bankroll()
 		var balances: Array=[]
 		for p in m.players: balances.append(p.balance)
-		check(m.start_round(mini(100,int(m.players[0].balance/10)*10)).ok,"random start")
+		var stakes:Array=[]
+		for p in m.players:stakes.append(mini(100,int(p.balance/10)*10))
+		check(m.start_round(stakes).ok,"random start")
 		finish(m)
 		check(m.phase=="settled","random settles")
 		for i in 8:

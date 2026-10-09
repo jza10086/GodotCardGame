@@ -1,9 +1,10 @@
 class_name BlackjackRingRules
 extends RefCounted
-## Eight independent virtual bankrolls versus one S17 dealer. Six physical decks.
+## Eight independent virtual bankrolls versus one unrestricted expected-profit dealer. Six physical decks.
 ## Commands are synchronous, version checked and debit/pay each stake once.
 ## Opening order is eligible P0..P7, dealer, repeated twice. Draw pile back is top.
 
+const DealerSolver = preload("res://scripts/blackjack_dealer_solver.gd")
 const BaseRules = preload("res://scripts/blackjack_rules.gd")
 const SUITS: Array[String] = ["clubs", "diamonds", "hearts", "spades"]
 const INITIAL_BALANCE: int = 1000
@@ -18,6 +19,7 @@ var current_player: int = -1
 var players: Array = []
 var dealer_hand: Array = []
 var dealer_revealed: bool = false
+var dealer_advice: Dictionary = {}
 var draw_pile: Array = []
 var discard_pile: Array = []
 var state_version: int = 0
@@ -30,7 +32,7 @@ func _init(seed_value: int = -1) -> void:
 	if seed_value < 0: _rng.randomize()
 	else: _rng.seed = seed_value
 	for i in PLAYER_COUNT:
-		players.append({"id": i, "name": "你" if i == 0 else "机器人 %d" % i,
+		players.append({"id": i, "name": "玩家 %d" % (i + 1),
 			"hand": [], "balance": INITIAL_BALANCE, "bet": 0, "initial_bet": 0,
 			"acted": false, "doubled": false, "status": "waiting", "result": {}})
 	draw_pile = build_deck()
@@ -51,34 +53,6 @@ static func hand_value(cards: Array) -> Dictionary:
 static func rank_label(rank: int) -> String:
 	return BaseRules.rank_label(rank)
 
-## Pure basic strategy: no opponent hands, hole card, shoe, RNG or model reference.
-## S17, no split/insurance. A soft total keeps its usable ace after a hit.
-static func decision(hand: Array, dealer_upcard: Dictionary, balance: int, bet: int, can_double: bool) -> String:
-	var value: Dictionary = hand_value(hand)
-	var total: int = int(value.total)
-	var up: int = int(dealer_upcard.get("rank", 10))
-	up = 11 if up == 1 else mini(up, 10)
-	var double_allowed: bool = can_double and hand.size() == 2 and bet > 0 and balance >= bet
-	if total >= 21: return "stand"
-	if value.soft:
-		if total >= 19: return "stand"
-		if total == 18:
-			if double_allowed and up >= 3 and up <= 6: return "double"
-			return "stand" if up <= 8 else "hit"
-		if double_allowed:
-			if total == 17 and up >= 3 and up <= 6: return "double"
-			if total >= 15 and total <= 16 and up >= 4 and up <= 6: return "double"
-			if total >= 13 and total <= 14 and up >= 5 and up <= 6: return "double"
-		return "hit"
-	if total >= 17: return "stand"
-	if total >= 13 and total <= 16: return "stand" if up <= 6 else "hit"
-	if total == 12: return "stand" if up >= 4 and up <= 6 else "hit"
-	if double_allowed:
-		if total == 11 and up <= 10: return "double"
-		if total == 10 and up <= 9: return "double"
-		if total == 9 and up >= 3 and up <= 6: return "double"
-	return "hit"
-
 func can_hit() -> bool:
 	return phase == "player" and current_player >= 0 and int(hand_value(players[current_player].hand).total) < 21
 
@@ -90,16 +64,19 @@ func can_double() -> bool:
 	var p: Dictionary = players[current_player]
 	return p.hand.size() == 2 and not p.acted and p.balance >= p.bet
 
-func start_round(amount: int, expected_version: int = -1) -> Dictionary:
+## Explicit local-human stakes for all eight fixed seats. Zero voluntarily skips.
+func start_round(stakes: Array, expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
 	if phase != "betting" and phase != "settled": return _error("请先完成当前牌局。")
-	var spectating: bool = amount == 0 and players[0].balance < MIN_BET
-	if not spectating and (amount < MIN_BET or amount % BET_STEP != 0): return _error("下注须为至少 10 的整十数。")
-	if amount > players[0].balance: return _error("余额不足。")
+	if stakes.size() != PLAYER_COUNT: return _error("请明确全部八个座位的下注；0 为跳过。")
 	var participants: int = 0
 	for i in PLAYER_COUNT:
-		if (i == 0 and not spectating) or (i > 0 and players[i].balance >= MIN_BET): participants += 1
-	if participants == 0: return _error("所有玩家余额不足，请重置虚拟金币。")
+		if typeof(stakes[i]) != TYPE_INT: return _error("下注须为整数。")
+		var stake: int = stakes[i]
+		if stake < 0 or stake % BET_STEP != 0: return _error("下注须为非负整十数；0 为跳过。")
+		if stake > players[i].balance: return _error("%d号玩家余额不足。" % (i + 1))
+		if stake > 0: participants += 1
+	if participants == 0: return _error("至少一位玩家需要下注；余额不足可重置虚拟金币。")
 	var available: int = draw_pile.size() + discard_pile.size() + dealer_hand.size()
 	for p in players: available += p.hand.size()
 	if available < (participants + 1) * 2: return _error("牌堆不足，无法发牌。")
@@ -110,8 +87,8 @@ func start_round(amount: int, expected_version: int = -1) -> Dictionary:
 	round_number += 1
 	for i in PLAYER_COUNT:
 		var p: Dictionary = players[i]
-		var stake: int = amount if i == 0 else mini(100, int(p.balance / BET_STEP) * BET_STEP)
-		if stake < MIN_BET:
+		var stake: int = stakes[i]
+		if stake == 0:
 			p.status = "skipped"
 			continue
 		p.bet = stake
@@ -123,14 +100,15 @@ func start_round(amount: int, expected_version: int = -1) -> Dictionary:
 		for p in players:
 			if p.bet > 0: p.hand.append(draw_pile.pop_back())
 		dealer_hand.append(draw_pile.pop_back())
+	# House priority: player naturals pay immediately, including against dealer natural.
 	for p in players:
-		if p.bet > 0 and hand_value(p.hand).blackjack: p.status = "blackjack"
+		if p.bet > 0 and hand_value(p.hand).blackjack: _pay_player(p, "blackjack", p.bet * 3)
 	if hand_value(dealer_hand).blackjack:
 		_settle_all()
 	else:
 		current_player = -1
 		_advance_player()
-	return _success("八人牌局已发牌。")
+	return _success("手动玩家牌局已发牌。")
 
 func hit(expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
@@ -143,6 +121,9 @@ func hit(expected_version: int = -1) -> Dictionary:
 	var value: Dictionary = hand_value(p.hand)
 	if value.bust:
 		p.status = "bust"
+		_advance_player()
+	elif p.hand.size() >= 5:
+		p.status = "five_card"
 		_advance_player()
 	elif value.total == 21:
 		p.status = "stood"
@@ -172,26 +153,23 @@ func double_down(expected_version: int = -1) -> Dictionary:
 	_advance_player()
 	return _success("加倍后只补一张，自动停牌。", {"card": card.duplicate()})
 
-func ai_step(expected_version: int = -1) -> Dictionary:
-	if _stale(expected_version): return _error("牌局已变化，请重试。")
-	if phase != "player" or current_player <= 0: return _error("当前不是机器人行动。")
-	var p: Dictionary = players[current_player]
-	var choice: String = decision(p.hand.duplicate(true), dealer_hand[0].duplicate(), p.balance, p.bet, can_double())
-	match choice:
-		"double": return double_down(expected_version)
-		"hit": return hit(expected_version)
-	return stand(expected_version)
+## Compatibility rejection: there are no player bots or automatic player decisions.
+func ai_step(_expected_version: int = -1) -> Dictionary:
+	return _error("全部玩家由本地真人操作；只有庄家自动行动。")
 
 func dealer_step(expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
 	if phase != "dealer": return _error("当前不是庄家行动。")
 	var card: Dictionary = {}
-	if hand_value(dealer_hand).total <= 16:
+	var advice: Dictionary = DealerSolver.choose_action(dealer_hand, players, DealerSolver.counts_from_cards(draw_pile))
+	dealer_advice = advice.duplicate(true)
+	if advice.action == "hit":
 		if draw_pile.is_empty(): return _void_round()
 		card = draw_pile.pop_back()
 		dealer_hand.append(card)
-	if hand_value(dealer_hand).total >= 17: _settle_all()
-	return _success("庄家行动完成。", {"card": card.duplicate()})
+		if hand_value(dealer_hand).bust or dealer_hand.size() >= 5: _settle_all()
+	else: _settle_all()
+	return _success("庄家按最大期望净收益行动。", {"card": card.duplicate(), "advice": advice})
 
 func next_round(expected_version: int = -1) -> Dictionary:
 	if _stale(expected_version): return _error("牌局已变化，请重试。")
@@ -222,7 +200,7 @@ func set_next_draws(card_ids: Array, expected_version: int = -1) -> Dictionary:
 ## Internal snapshot for the local controller/tests, NOT a network privacy API.
 func snapshot() -> Dictionary:
 	return {"phase": phase, "current_player": current_player, "players": players.duplicate(true),
-		"dealer_hand": dealer_hand.duplicate(true), "dealer_revealed": dealer_revealed,
+		"dealer_hand": dealer_hand.duplicate(true), "dealer_revealed": dealer_revealed, "dealer_advice": dealer_advice.duplicate(true),
 		"draw_pile": draw_pile.duplicate(true), "discard_pile": discard_pile.duplicate(true),
 		"state_version": state_version, "round_number": round_number, "shoe_shuffles": shoe_shuffles}
 
@@ -237,8 +215,10 @@ func _advance_player() -> void:
 	# if every active hand is either busted or natural.
 	var needs_comparison: bool = false
 	for p in players:
-		if p.bet > 0 and p.status != "bust" and p.status != "blackjack": needs_comparison = true
-	if needs_comparison: phase = "dealer"
+		if p.bet > 0 and p.result.is_empty() and p.status != "bust": needs_comparison = true
+	if needs_comparison:
+		phase = "dealer"
+		dealer_advice = DealerSolver.choose_action(dealer_hand, players, DealerSolver.counts_from_cards(draw_pile))
 	else: _settle_all()
 
 func _settle_all(voided: bool = false) -> void:
@@ -249,28 +229,35 @@ func _settle_all(voided: bool = false) -> void:
 		var value: Dictionary = hand_value(p.hand)
 		var outcome: String = "loss"
 		if voided: outcome = "void"
-		elif dealer_value.blackjack: outcome = "push" if value.blackjack else "dealer_blackjack"
-		elif value.blackjack: outcome = "blackjack"
 		elif value.bust: outcome = "bust"
+		elif dealer_value.blackjack: outcome = "dealer_blackjack"
+		elif value.blackjack: outcome = "blackjack"
+		elif p.hand.size() >= 5 and not dealer_value.bust and dealer_hand.size() >= 5: outcome = "push"
+		elif p.hand.size() >= 5: outcome = "five_card"
+		elif not dealer_value.bust and dealer_hand.size() >= 5: outcome = "loss"
 		elif dealer_value.bust or value.total > dealer_value.total: outcome = "win"
 		elif value.total == dealer_value.total: outcome = "push"
 		var payout: int = 0
 		match outcome:
-			"blackjack": payout = p.bet + int(p.bet * 3 / 2)
-			"win": payout = p.bet * 2
+			"blackjack": payout = p.bet * 3
+			"win", "five_card": payout = p.bet * 2
 			"push", "void": payout = p.bet
-		p.balance += payout
-		p.result = {"outcome": outcome, "payout": payout, "net": payout - p.bet,
-			"bet": p.bet, "initial_bet": p.initial_bet, "doubled": p.doubled,
-			"player_total": value.total, "dealer_total": dealer_value.total, "round_number": round_number}
-		p.status = "settled"
+		_pay_player(p, outcome, payout)
 	phase = "settled"
 	current_player = -1
 	dealer_revealed = true
 
+func _pay_player(p: Dictionary, outcome: String, payout: int) -> void:
+	if not p.result.is_empty(): return
+	p.balance += payout
+	p.result = {"outcome": outcome, "payout": payout, "net": payout - p.bet,
+		"bet": p.bet, "initial_bet": p.initial_bet, "doubled": p.doubled,
+		"player_total": hand_value(p.hand).total, "dealer_total": hand_value(dealer_hand).total, "round_number": round_number}
+	p.status = "settled"
+
 func _void_round() -> Dictionary:
 	_settle_all(true)
-	return _success("牌堆异常耗尽，本局作废并退回所有下注。")
+	return _success("牌堆异常耗尽，未结算手牌作废并退回下注；已即时结算奖励保留。")
 
 func _collect_hands() -> void:
 	for p in players:
@@ -283,6 +270,7 @@ func _clear_round() -> void:
 	phase = "betting"
 	current_player = -1
 	dealer_revealed = false
+	dealer_advice.clear()
 	for p in players:
 		p.bet = 0
 		p.initial_bet = 0

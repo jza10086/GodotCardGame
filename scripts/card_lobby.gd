@@ -12,7 +12,7 @@ func _ready() -> void:
 	col.add_child(UI.label("选择一种玩法，坐下来玩一局。",19))
 	col.add_child(UI.label("真实 3D 卡牌  ·  本地人机  ·  原创牌面",15,Color("98b4b4")))
 	col.add_child(UI.button("21 点  /  八人环桌",func():get_tree().change_scene_to_file("res://scenes/blackjack_game.tscn"),true))
-	col.add_child(UI.label("你 + 7 位 AI · 中央庄家 · 独立1000金币 · 桌面暗牌可查看",16))
+	col.add_child(UI.label("1–8 位本地真人 · 仅庄家 AI · 独立1000金币 · 玩家全明牌",16))
 	col.add_child(UI.button("彩序  /  UNO 风格",func():get_tree().change_scene_to_file("res://scenes/uno_game.tscn")))
 	col.add_child(UI.label("2–8 人 · 自定义起牌与房规 · 每局剩牌计分",16))
 	col.add_child(UI.button("卡牌实验室  /  通用 3D 模板",func():get_tree().change_scene_to_file("res://scenes/table_demo.tscn")))

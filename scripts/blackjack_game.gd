@@ -25,7 +25,11 @@ var modal_col: VBoxContainer
 var dealer_clock := 0.0
 var paused := false
 var textures: Dictionary = {}
-var peek_ids: Dictionary = {}
+var peek_ids: Dictionary = {} # Retained empty for presenter compatibility; all player cards are public.
+var seat_bets: Array = []
+var betting_panel: PanelContainer
+var seats_control: SpinBox
+var controlled_player := 0
 var fixture_name := ""
 var _rendered_version := -1
 
@@ -42,21 +46,31 @@ func _ready() -> void:
 	set_view(false)
 
 func _apply_fixture(value: String) -> void:
-	# Deal order is eight seats then dealer, repeated twice. Physical IDs unique.
-	var opening: Array = [4,22,35,48,61,74,87,100,8,18,114,127,140,153,166,179,192,6]
+	var hands:Array=[]
+	var fixture_seats := 2 if value.ends_with("-2") else 8
+	for i in fixture_seats:hands.append([10,10])
+	value=value.trim_suffix("-2")
+	var dealer:Array=[10,6]
+	var extra:Array=[10,6,3,2,4,5,6,7,8,9]
 	match value:
-		"natural": opening[0]=0; opening[9]=12
-		"dealer-natural": opening[8]=0; opening[17]=12
-		"bankrupt": game.players[0].balance=10; opening[0]=9; opening[9]=11
-		"bust": opening[0]=9; opening[9]=11
-		"push": opening[0]=9; opening[9]=12; opening[8]=25; opening[17]=38
-		"soft17": opening[8]=0; opening[17]=5
-	opening.append_array([9,5,21,34,47,60,73,86,99,112,125,138,151,164,177,190])
-	# Fixture variants may overlap a tail id; retain one physical copy only.
-	var unique: Array = []
-	for id in opening:
-		if not unique.has(id): unique.append(id)
-	game.set_next_draws(unique)
+		"natural":hands[0]=[1,13]
+		"both-natural":hands[0]=[1,13];dealer=[1,12]
+		"dealer-natural":dealer=[1,13]
+		"five":hands[0]=[2,3];dealer=[10,7];extra=[2,2,2,10,10,10]
+		"five-tie":hands[0]=[2,3];dealer=[2,3];extra=[2,2,2,2,2,2]
+		"bust":hands[0]=[10,10]
+		"double":hands[0]=[5,6]
+		"soft17":dealer=[1,6]
+	var ranks:Array=[]
+	for pass_index in 2:
+		for cards in hands:ranks.append(cards[pass_index])
+		ranks.append(dealer[pass_index])
+	ranks.append_array(extra)
+	var ids:Array=[]
+	for rank in ranks:
+		for card in RULES.build_deck():
+			if card.rank==rank and not ids.has(card.id):ids.append(card.id);break
+	game.set_next_draws(ids)
 
 func _panel(parent: Node, color := Color("102c35")) -> PanelContainer:
 	var panel := PanelContainer.new(); panel.add_theme_stylebox_override("panel",UI.style(color,12)); parent.add_child(panel); return panel
@@ -69,7 +83,7 @@ func _build_ui() -> void:
 	var row:=HBoxContainer.new();row.add_theme_constant_override("separation",16);header.add_child(row)
 	var titles:=VBoxContainer.new();titles.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(titles)
 	titles.add_child(UI.label("21 点  /  八人环桌",24,Color("f2dfac")))
-	titles.add_child(UI.label("庄家居中 · 六副牌 · 1 位真人 + 7 位 AI · 虚拟金币",14,Color("9bb8b6")))
+	titles.add_child(UI.label("庄家居中 · 六副牌 · 1–8 位本地真人 · 仅庄家 AI · 虚拟金币",14,Color("9bb8b6")))
 	var bank:=VBoxContainer.new();row.add_child(bank);balance_label=UI.label("",21,Color("f1d58e"));bank.add_child(balance_label);stake_label=UI.label("",14);bank.add_child(stake_label)
 	row.add_child(_small_button("视角 V",toggle_view));row.add_child(_small_button("俯视 T",toggle_top_down));row.add_child(_small_button("菜单",_open_menu));row.add_child(_small_button("大厅",_leave))
 	var footer:=PanelContainer.new();footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE);footer.offset_left=18;footer.offset_right=-18;footer.offset_top=-160;footer.offset_bottom=-12;footer.add_theme_stylebox_override("panel",UI.style(Color("102c35"),12));hud.add_child(footer)
@@ -78,15 +92,15 @@ func _build_ui() -> void:
 	detail_label=UI.label("",14,Color("a9c3bb"));detail_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(detail_label)
 	var actions:=HBoxContainer.new();actions.alignment=BoxContainer.ALIGNMENT_CENTER;actions.add_theme_constant_override("separation",8);col.add_child(actions)
 	minus_button=_small_button("− 10",func():bet_control.value-=10);actions.add_child(minus_button)
-	bet_control=SpinBox.new();bet_control.min_value=10;bet_control.max_value=1000;bet_control.step=10;bet_control.value=100;bet_control.custom_minimum_size=Vector2(125,40);bet_control.suffix="金币";actions.add_child(bet_control)
+	bet_control=SpinBox.new();bet_control.min_value=0;bet_control.max_value=1000;bet_control.step=10;bet_control.value=100;bet_control.custom_minimum_size=Vector2(125,40);bet_control.suffix="金币";actions.add_child(bet_control)
 	plus_button=_small_button("+ 10",func():bet_control.value+=10);actions.add_child(plus_button)
-	deal_button=_small_button("下注并发牌",_deal,true);actions.add_child(deal_button)
+	deal_button=_small_button("设置全桌下注",_open_betting,true);actions.add_child(deal_button)
 	hit_button=_small_button("要牌 H",func():_act("hit"),true);actions.add_child(hit_button)
 	stand_button=_small_button("停牌 S",func():_act("stand"));actions.add_child(stand_button)
 	double_button=_small_button("加倍 D",func():_act("double_down"));actions.add_child(double_button)
 	next_button=_small_button("下一局",func():_act("next_round"),true);actions.add_child(next_button)
 	reset_button=_small_button("重置金币",_confirm_reset);actions.add_child(reset_button)
-	player_label=UI.label("点击自己的暗牌查看 / 再点盖回 · 其他暗牌结算才亮 · 右键转头 · Tab 自由看桌 · R 复位",13,Color("8cabaa"));player_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(player_label)
+	player_label=UI.label("玩家全部明牌 · 轮流手动操作 · 右键转头 · Tab 自由看桌 · R 复位",13,Color("8cabaa"));player_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(player_label)
 	results_label=UI.label("",14,Color("eed5a1"));results_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(results_label)
 	dealer_label=UI.label("",14);dealer_label.hide();hud.add_child(dealer_label)
 	modal=ColorRect.new();modal.color=Color(0.02,0.05,0.07,0.94);modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);hud.add_child(modal)
@@ -107,76 +121,120 @@ func _sync(animated := true) -> void:
 	var hands:Array=[];var ids:Array=[]
 	for index in game.players.size():
 		var p:Dictionary=game.players[index];ids.append(str(p.id));var cards:Array=p.hand.duplicate(true)
-		if game.phase!="settled" and cards.size()>1:
-			if index==0:cards[1].private_hidden=true;cards[1].peek=peek_ids.has(cards[1].id)
-			else:cards[1]={"id":cards[1].id,"hidden":true}
+
 		hands.append(cards)
 	var dealer:Array=game.dealer_hand.duplicate(true)
 	if not game.dealer_revealed and dealer.size()>1:dealer[1]={"id":dealer[1].id,"hidden":true}
 	var deck_cards:Array=[]
 	for card in game.draw_pile:deck_cards.append({"id":card.id,"hidden":true})
 	present_ring(ids,hands,dealer,deck_cards,_texture,animated)
+	if game.phase == "player": controlled_player = game.current_player
+	set_active_seat(controlled_player)
 	_rendered_version=game.state_version
 	_refresh()
 func _refresh() -> void:
 	if not is_instance_valid(balance_label) or game==null:return
-	var p:Dictionary=game.players[0];var locked:bool=paused or is_animating()
-	balance_label.text="你的余额 %d"%p.balance;stake_label.text="本局下注 %d · 虚拟金币"%p.bet
-	var dealer_text:="庄家 · S17\n等待发牌"
+	var p:Dictionary=game.players[controlled_player];var locked:bool=paused or is_animating()
+	balance_label.text="%d号玩家 · 余额 %d"%[controlled_player+1,p.balance];stake_label.text="本局下注 %d · 虚拟金币"%p.bet
+	var dealer_text:="庄家 · 收益最优\n等待发牌"
 	if not game.dealer_hand.is_empty():dealer_text="庄家 · %s"%(("%d 点"%RULES.hand_value(game.dealer_hand).total) if game.dealer_revealed else ("明牌 %d + 暗牌"%RULES.hand_value([game.dealer_hand[0]]).total))
 	dealer_label.text=dealer_text;center_label.text=dealer_text
 	for index in game.players.size():
 		var seat:Dictionary=game.players[index]
-		var names:Dictionary={"waiting":"待下注","playing":"行动中","stood":"已停牌","bust":"爆牌","blackjack":"天生21","skipped":"余额不足 / 跳过","settled":"已结算"}
+		var names:Dictionary={"waiting":"待下注","playing":"行动中","stood":"已停牌","bust":"爆牌","blackjack":"天然21","five_card":"五张锁手","skipped":"未下注 / 跳过","settled":"已结算"}
 		var state:String=names.get(seat.status,seat.status)
 		if seat.status=="playing" and not (game.phase=="player" and game.current_player==index):state="等待行动"
-		# Opponents' natural/bust state can reveal information, so show only public action.
-		if index>0 and game.phase!="settled" and state=="天生21":state="已停牌"
+
 		var score:=""
-		if not seat.hand.is_empty() and (index==0 or game.phase=="settled"):score=" · %d点"%RULES.hand_value(seat.hand).total
+		if not seat.hand.is_empty():score=" · %d点"%RULES.hand_value(seat.hand).total
 		if game.phase=="settled" and not seat.result.is_empty():state="净 %+d"%seat.result.net
-		set_seat_label(index,"%d号 %s%s\n余额 %d · 注 %d · %s"%[index+1,"你" if index==0 else "AI",score,seat.balance,seat.bet,state])
-	var betting:bool=game.phase=="betting";var human_turn:bool=game.phase=="player" and game.current_player==0
-	for node in [bet_control,minus_button,plus_button]:node.visible=betting and p.balance>=10
-	deal_button.visible=betting;deal_button.disabled=locked;deal_button.text="旁观本局" if p.balance<10 else "下注并发牌"
-	bet_control.max_value=maxi(10,int(p.balance/10)*10);bet_control.editable=not locked
-	minus_button.disabled=locked or bet_control.value<=10;plus_button.disabled=locked or bet_control.value>=bet_control.max_value
+		set_seat_label(index,"%d号 %s%s\n余额 %d · 注 %d · %s"%[index+1,"玩家",score,seat.balance,seat.bet,state])
+	for i in seats.size():seats[i].label.visible=third_person or top_down or i not in [active_seat,(active_seat+1)%8,(active_seat+7)%8]
+	var betting:bool=game.phase=="betting";var human_turn:bool=game.phase=="player" and game.current_player>=0
+	for node in [bet_control,minus_button,plus_button]:node.visible=false
+	deal_button.visible=betting;deal_button.disabled=locked;deal_button.text="设置全桌下注"
+
 	for button in [hit_button,stand_button,double_button]:button.visible=human_turn;button.disabled=locked
 	double_button.disabled=locked or not game.can_double();double_button.text="加倍 +%d D"%p.initial_bet
 	next_button.visible=game.phase=="settled";next_button.disabled=locked
-	reset_button.visible=game.phase in ["betting","settled"] and p.balance<10;reset_button.disabled=locked
+	reset_button.visible=game.phase in ["betting","settled"];reset_button.disabled=locked
 	results_label.visible=game.phase=="settled"
 	match game.phase:
-		"betting":status_label.text="选择下注，八位玩家分别与中央庄家比牌";detail_label.text="每方初始一明一暗 · 你可以点击自己的暗牌查看 · AI 每局下注至多100"
+		"betting":status_label.text="本地真人手动下注，轮流操作各自手牌";detail_label.text="玩家明牌 · 仅庄家一明一暗 · 天然21净2:1优先 · 五张规则"
 		"player":
-			status_label.text="轮到你了  /  要牌、停牌或加倍" if human_turn else "%d号 AI 正在思考…"%(game.current_player+1)
-			detail_label.text="你的手牌 %d 点%s · 加倍仅限初始两张，追加同额后只补一张"%[RULES.hand_value(p.hand).total,"（软牌）" if RULES.hand_value(p.hand).soft else ""]
-		"dealer":status_label.text="中央庄家行动中…";detail_label.text="16及以下要牌；软17、硬17都停牌。各玩家独立结算。"
+			status_label.text="轮到 %d号玩家  /  要牌、停牌或加倍"%(game.current_player+1)
+			detail_label.text="当前玩家手牌 %d 点%s · 加倍仅限初始两张，追加同额后只补一张"%[RULES.hand_value(p.hand).total,"（软牌）" if RULES.hand_value(p.hand).soft else ""]
+		"dealer":status_label.text="中央庄家按概率决策…";detail_label.text=_advice_text()
 		"settled":
 			var r:Dictionary=p.result
-			status_label.text="本局结算 · 你的净收益 %+d"%int(r.get("net",0))
+			status_label.text="本局结算 · %d号玩家净收益 %+d"%[controlled_player+1,int(r.get("net",0))]
 			detail_label.text="总下注 %d · 返还 %d（含本金） · 余额 %d"%[p.bet,int(r.get("payout",0)),p.balance]
 			var parts:PackedStringArray=[]
 			for i in game.players.size():parts.append("%d号 %+d"%[i+1,int(game.players[i].result.get("net",0))])
 			results_label.text="   |   ".join(parts)
+			if not game.dealer_advice.is_empty():detail_label.text += " · " + _advice_text()
 
-func _peek_card(id:Variant) -> void:
-	if paused or is_animating() or game.phase=="settled":return
-	var cards:Array=game.players[0].hand
-	if cards.size()<2 or cards[1].id!=id:return
-	if peek_ids.has(id):peek_ids.erase(id)
-	else:peek_ids[id]=true
-	_sync(false)
+func _advice_text() -> String:
+	var advice:Dictionary=game.dealer_advice
+	if advice.is_empty():return "只按剩余牌概率计算，不读取未来顺序。"
+	var hit_text:String="不可要牌" if advice.hit_ev==null else "%+.2f"%float(advice.hit_ev)
+	return "庄家未结算注EV：停 %+.2f / 要 %s → %s（金币）"%[float(advice.stand_ev),hit_text,"要牌" if advice.action=="hit" else "停牌"]
+
+func _peek_card(_id:Variant) -> void:
+	pass # Players are public; dealer hole card never responds to clicks.
 func _close_peek() -> void:
-	if peek_ids.is_empty():return
 	peek_ids.clear()
-	if game!=null:_sync(false)
+
+func set_active_seat(index: int) -> bool:
+	if index < 0 or index >= seats.size(): return false
+	active_seat = index
+	player_rig = seats[index].rig
+	first_camera = seats[index].camera
+	hand_world = seats[index].anchor
+	hand = seats[index].hand
+	player_yaw = float(seats[index].yaw)
+	player_pitch = deg_to_rad(-54.0)
+	if not third_person and not top_down:
+		camera=first_camera
+		camera.make_current()
+	player_rig.rotation=Vector3(player_pitch,player_yaw,0)
+	clear_hover()
+	return true
+
+func _open_betting() -> void:
+	if paused or is_animating() or game.phase != "betting": return
+	paused=true;menu_open=true;release_mouse_look();_clear_modal();modal.show()
+	modal_col.add_child(UI.label("全桌手动下注 · 0 表示跳过",26,Color("f4dfaa")))
+	var count_row := HBoxContainer.new();modal_col.add_child(count_row)
+	count_row.add_child(UI.label("真人席位数",17))
+	seats_control=SpinBox.new();seats_control.min_value=1;seats_control.max_value=8;seats_control.value=2 if fixture_name.ends_with("-2") else 8;count_row.add_child(seats_control)
+	count_row.add_child(_small_button("全部填100（按余额）",func():
+		for i in 8: seat_bets[i].value=mini(100,int(game.players[i].balance/10)*10) if i<int(seats_control.value) else 0))
+	seat_bets.clear()
+	var grid := GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",28);modal_col.add_child(grid)
+	for i in 8:
+		var row := HBoxContainer.new();grid.add_child(row)
+		row.add_child(UI.label("%d号 · 余额 %d"%[i+1,game.players[i].balance],17))
+		var amount := SpinBox.new();amount.min_value=0;amount.max_value=int(game.players[i].balance/10)*10;amount.step=10;amount.value=0;amount.custom_minimum_size.x=125;row.add_child(amount);seat_bets.append(amount);amount.editable=i<int(seats_control.value)
+	seats_control.value_changed.connect(func(value:float):
+		for i in 8:
+			seat_bets[i].editable=i<int(value)
+			if i>=int(value):seat_bets[i].value=0)
+	modal_col.add_child(UI.label("每席独立金币。请填写金额或明确批量填入，再一次确认发牌。
+无人下注无法开始；不会自动补充金币或替玩家操作。",16))
+	modal_col.add_child(_small_button("确认全桌下注并发牌",_deal,true))
+	modal_col.add_child(_small_button("取消",_close_menu))
 func _deal() -> void:
-	if paused or is_animating():return
-	bet_control.apply();_accept(game.start_round(0 if game.players[0].balance<10 else int(bet_control.value),_rendered_version))
+	if is_animating() or game.phase != "betting" or seat_bets.size()!=8:return
+	var stakes:Array=[]
+	for value in seat_bets:value.apply();stakes.append(int(value.value))
+	var result:Dictionary=game.start_round(stakes,_rendered_version)
+	if result.ok:_close_menu();_accept(result)
+	else:
+		var error := UI.label(result.message,16,Color("ffaaa0"));modal_col.add_child(error)
 func _act(command:String) -> void:
 	if paused or is_animating():return
-	if command in ["hit","stand","double_down"] and (game.phase!="player" or game.current_player!=0):return
+	if command in ["hit","stand","double_down"] and (game.phase!="player" or game.current_player<0):return
 	_accept(game.call(command,_rendered_version))
 func _accept(result:Dictionary) -> void:
 	if result.ok:dealer_clock=0;_sync()
@@ -187,16 +245,16 @@ func _process(delta:float) -> void:
 	if game==null:return
 	_refresh()
 	if is_animating():return
-	if game.phase!="dealer" and not (game.phase=="player" and game.current_player>0):return
+	if game.phase!="dealer":return
 	dealer_clock+=delta
-	if dealer_clock>=0.85:_act("dealer_step" if game.phase=="dealer" else "ai_step")
+	if dealer_clock>=0.85:_act("dealer_step")
 func _clear_modal() -> void:
 	for child in modal_col.get_children():modal_col.remove_child(child);child.queue_free()
 func _open_menu() -> void:
 	_close_peek();paused=true;menu_open=true;release_mouse_look();_clear_modal();modal.show()
-	modal_col.add_child(UI.label("八人环桌 / 规则与 AI",26,Color("f4dfaa")))
-	modal_col.add_child(UI.label("八方各有独立金币、下注与结算，庄家在中央。\n六副标准牌共312张，局内不回收；A计1/11，人头牌计10。\n普通胜净赚1:1，天生21净赚3:2，和局退本金。\n标准加倍只限初始两张，追加同额、补一张后停牌。\n庄家先查天生21；16及以下要牌，软/硬17均停。",17))
-	modal_col.add_child(UI.label("AI只看自己的牌、庄家明牌和自己余额。\n按硬牌/软牌基础策略选择要牌、停牌或加倍。\n不看其他暗牌、庄家暗牌或未来牌序，不分牌/保险/投降。\n每方初始一明一暗，补牌明置，结算全亮。",16,Color("a9c3bb")))
+	modal_col.add_child(UI.label("八人环桌 / 本地真人与庄家",26,Color("f4dfaa")))
+	modal_col.add_child(UI.label("1–8位本地真人，共用设备轮流手动操作，固定八角座位。\n六副标准牌共312张，局内不回收；A计1/11，人头牌计10。\n美式：玩家全明，庄家一明一暗，起手预检天然21。\n玩家天然21优先独立支付净2:1，双方天然也玩家胜。\n普通胜净1:1，和局退本金。加倍补一张后停牌。",17))
+	modal_col.add_child(UI.label("玩家五张未爆锁手：胜普通庄家；双方五张未爆平局。\n庄家五张未爆胜普通玩家；爆牌优先判负。\n天然21已支付，不再参与末结算。\n只有庄家AI：自由要牌/停牌，按剩余牌概率最大化净收益，\n可知全部手牌与下注，不读取未来牌堆顺序。",16,Color("a9c3bb")))
 	modal_col.add_child(UI.label("V 第一/第三视角 · T 中心俯视 · Tab 自由看桌 · R 复位\n离桌保留整桌牌局和余额；关闭程序结束会话。金币无真实价值。",15))
 	modal_col.add_child(_small_button("继续游戏",_close_menu,true));modal_col.add_child(_small_button("返回大厅（保留整桌）",_leave))
 	var reset:=_small_button("重置全桌金币为1000…",_confirm_reset);reset.disabled=game.phase not in ["betting","settled"];modal_col.add_child(reset)
