@@ -1,6 +1,6 @@
 extends SceneTree
 const HOST=preload("res://scripts/public_card_table.gd")
-const GAME=preload("res://scenes/blackjack_game.tscn")
+const GAME=preload("res://scenes/blackjack_legacy_game.tscn")
 var checks:=0
 var failures:=0
 func check(value:bool,message:String)->void:

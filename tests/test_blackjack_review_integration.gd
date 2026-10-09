@@ -18,7 +18,7 @@ func run() -> void:
 	session.blackjack = Rules.new(4920)
 	var g = session.get_blackjack()
 	rig(g, [1,9,2,6,3,4]) # player 2,3 -> hit4; dealer10,7
-	var scene = load("res://scenes/blackjack_game.tscn").instantiate()
+	var scene = load("res://scenes/blackjack_legacy_game.tscn").instantiate()
 	root.add_child(scene); current_scene = scene
 	await process_frame
 	scene.set_process(false)
@@ -47,7 +47,7 @@ func run() -> void:
 	await process_frame; await process_frame
 	ck(current_scene.scene_file_path == "res://scenes/card_lobby.tscn", "leave enters lobby")
 	ck(snap(g) == state and session.get_blackjack() == g, "leave preserves live wager without refund")
-	ck(change_scene_to_file("res://scenes/blackjack_game.tscn") == OK, "reentry succeeds")
+	ck(change_scene_to_file("res://scenes/blackjack_legacy_game.tscn") == OK, "reentry succeeds")
 	await process_frame; await process_frame
 	scene = current_scene; scene.set_process(false)
 	ck(scene.game == g and snap(g) == state and g.balance == 900, "reentry resumes same round without bonus")
