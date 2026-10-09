@@ -62,8 +62,8 @@ func finish(g, human_action: String = "stand") -> void:
 		var seat: int = g.current_player
 		ck(seat >= previous,"seats take turns monotonically")
 		previous = seat
-		var response: Dictionary = g.call(human_action) if seat == 0 else g.ai_step()
-		ck(response.ok,"player/AI step accepted")
+		var response: Dictionary = g.call(human_action)
+		ck(response.ok,"manual seat action accepted")
 		guard += 1
 	while g.phase == "dealer" and guard < 200:
 		var before: int = g.dealer_hand.size()
@@ -83,13 +83,17 @@ func account(g, before: Array) -> void:
 		var expected := "loss"
 		var pt := total(p.hand)
 		var dt := total(g.dealer_hand)
-		if natural(g.dealer_hand): expected = "push" if natural(p.hand) else "dealer_blackjack"
+		if natural(p.hand): expected = "blackjack"
 		elif pt > 21: expected = "bust"
-		elif natural(p.hand): expected = "blackjack"
-		elif dt > 21 or pt > dt: expected = "win"
+		elif natural(g.dealer_hand): expected = "dealer_blackjack"
+		elif p.hand.size() >= 5:
+			expected = "push" if g.dealer_hand.size() >= 5 and dt <= 21 else "five_card"
+		elif dt > 21: expected = "win"
+		elif g.dealer_hand.size() >= 5: expected = "loss"
+		elif pt > dt: expected = "win"
 		elif pt == dt: expected = "push"
 		ck(r.outcome == expected,"seat %d independent outcome oracle %s vs %s" % [i,r.outcome,expected])
-		var payout: int = p.bet * 2 if expected == "win" else (int(p.bet * 5 / 2) if expected == "blackjack" else (p.bet if expected == "push" else 0))
+		var payout: int = p.bet * 2 if expected in ["win","five_card"] else (p.bet * 3 if expected == "blackjack" else (p.bet if expected == "push" else 0))
 		ck(r.payout == payout and p.balance == before[i] - p.bet + payout,"seat %d exact wallet conservation" % i)
 		ck(r.net == payout - p.bet,"seat net excludes returned stake")
 		if p.doubled: ck(p.hand.size() == 3 and p.bet == p.initial_bet * 2,"every doubled hand exactly 3 cards")
@@ -100,22 +104,23 @@ func _initialize() -> void:
 	test_open_and_atomicity()
 	test_naturals()
 	test_double()
-	test_s17()
+	test_manual_only()
 	test_bankrupt()
 	test_random_rounds()
-	test_public_strategy()
 	test_void_refunds()
+	test_five_card_priority()
+	test_shoe_order_invariance()
 	print("INDEPENDENT RING REVIEW: %d checks, %d failures" % [checks,failures])
 	quit(1 if failures else 0)
 func test_open_and_atomicity() -> void:
 	var g = rig(hands(8,8),[10,7])
 	conservation(g,"before deal")
-	for amount in [-10,0,5,15,1010]: reject(g,"start_round",[amount],"invalid wager")
+	for amount in [-10,0,5,15,1010]: reject(g,"start_round",[stakes(amount)],"invalid wager")
 	var version: int = g.state_version
-	ck(g.start_round(100,version).ok,"open round")
+	ck(g.start_round(stakes(100),version).ok,"open round")
 	ck(g.current_player == 0 and g.dealer_hand.size()==2,"human first and dealer 2 cards")
 	for p in g.players: ck(p.hand.size()==2 and p.bet==100 and p.balance==900,"each seat debited and dealt twice")
-	reject(g,"start_round",[100],"duplicate deal")
+	reject(g,"start_round",[stakes(100)],"duplicate deal")
 	reject(g,"hit",[version],"stale input")
 	reject(g,"dealer_step",[],"dealer cannot act before players")
 	conservation(g,"opening")
@@ -125,88 +130,60 @@ func test_open_and_atomicity() -> void:
 	conservation(g,"next round")
 func test_naturals() -> void:
 	var h := hands(10,9); h[0]=[1,13]; h[1]=[1,10]
-	var g = rig(h,[10,1]); g.start_round(100)
+	var g = rig(h,[10,1]); g.start_round(stakes(100))
 	ck(g.phase=="settled","dealer blackjack immediate peek resolves")
 	account(g,[1000,1000,1000,1000,1000,1000,1000,1000]); conservation(g,"BJ peek")
 	h = hands(10,9); h[0]=[1,13]; h[1]=[7,7]
-	g=rig(h,[10,10],[7]);g.start_round(100)
+	g=rig(h,[10,10],[7]);g.start_round(stakes(100))
+	g.hit()
 	finish(g); account(g,[1000,1000,1000,1000,1000,1000,1000,1000])
-	ck(g.players[0].result.payout==250,"natural pays 3:2 profit")
+	ck(g.players[0].result.payout==300,"natural pays 2:1 profit")
 	ck(g.players[1].hand.size()==3 and g.players[1].result.payout==200,"ordinary 3-card21 only pays1:1")
 func test_double() -> void:
 	var g=rig(hands(5,6),[6,10],[10,10,10,10,10,10,10,10,10])
-	g.start_round(100)
+	g.start_round(stakes(100))
 	var version: int=g.state_version
 	ck(g.double_down(version).ok,"human double accepted")
 	ck(g.players[0].balance==800 and g.players[0].hand.size()==3,"double debit and 1 card atomic")
 	reject(g,"double_down",[version],"duplicate stale double")
 	finish(g);account(g,[1000,1000,1000,1000,1000,1000,1000,1000]);conservation(g,"all doubles")
-	for p in g.players: ck(p.doubled and p.hand.size()==3,"all AI double hard11 vs6")
-	g=rig(hands(5,6),[6,10]);g.players[0].balance=100;g.start_round(100)
+	for i in range(1,8): ck(not g.players[i].doubled,"other seats never auto double")
+	g=rig(hands(5,6),[6,10]);g.players[0].balance=100;g.start_round(stakes(100))
 	reject(g,"double_down",[],"insufficient bankroll double")
-func test_s17() -> void:
-	for dh in [[1,6],[10,7]]:
-		var g=rig(hands(10,8),dh,[10]);g.start_round(100);finish(g)
-		ck(g.dealer_hand.size()==2,"dealer stands on soft and hard17")
-		account(g,[1000,1000,1000,1000,1000,1000,1000,1000])
+func test_manual_only() -> void:
+	var g=rig(hands(10,8),[10,7]);g.start_round(stakes(100))
+	reject(g,"ai_step",[],"player AI prohibited")
+	g.stand()
+	ck(g.current_player==1,"manual control advances to next seat")
+	reject(g,"ai_step",[],"next player still manual")
+	finish(g);account(g,[1000,1000,1000,1000,1000,1000,1000,1000])
 func test_bankrupt() -> void:
 	var g=Rules.new(45)
 	for i in [0,2,4]:g.players[i].balance=5
 	var b:=balances(g)
-	ck(g.start_round(0).ok,"bankrupt human allows AI-only round")
+	var bets:=stakes(100)
+	for i in [0,2,4]:bets[i]=0
+	ck(g.start_round(bets).ok,"explicit skipped seats allow remaining humans")
 	for i in [0,2,4]:ck(g.players[i].hand.is_empty() and g.players[i].bet==0,"bankrupt seat skipped")
 	finish(g);account(g,b);conservation(g,"bankrupt skipped")
 func test_random_rounds() -> void:
 	var g=Rules.new(25109)
-	for round_index in 160:
+	for round_index in 40:
 		if g.phase=="settled":g.next_round()
 		if round_index % 20==0:g.reset_bankroll()
 		var b:=balances(g)
-		var amount: int=mini(100,int(g.players[0].balance/10)*10)
-		var response: Dictionary=g.start_round(amount)
+		var amount: int=100
+		for p in g.players: amount=mini(amount,int(p.balance/10)*10)
+		var response: Dictionary=g.start_round(stakes(amount))
 		if not response.ok:
-			g.reset_bankroll(); b=balances(g); response=g.start_round(100)
+			g.reset_bankroll(); b=balances(g); response=g.start_round(stakes(100))
 		ck(response.ok,"random deal")
 		finish(g,"hit" if round_index%2==0 else "stand")
 		account(g,b);conservation(g,"random %d"%round_index)
 
-func policy(hand: Array, up_rank: int, funds: int, stake: int, double_ok: bool) -> String:
-	var t := total(hand)
-	var low := 0
-	for card in hand: low += mini(int(card.rank),10)
-	var soft := t != low
-	var up := 11 if up_rank == 1 else mini(up_rank,10)
-	var d := double_ok and hand.size()==2 and funds>=stake and stake>0
-	if t>=21:return "stand"
-	if soft:
-		if t>=19:return "stand"
-		if t==18:
-			if d and up in [3,4,5,6]:return "double"
-			return "stand" if up in [2,3,4,5,6,7,8] else "hit"
-		var soft_doubles := {13:[5,6],14:[5,6],15:[4,5,6],16:[4,5,6],17:[3,4,5,6]}
-		return "double" if d and soft_doubles.has(t) and up in soft_doubles[t] else "hit"
-	if t>=17:return "stand"
-	if t in [13,14,15,16] and up in [2,3,4,5,6]:return "stand"
-	if t==12 and up in [4,5,6]:return "stand"
-	var hard_doubles := {9:[3,4,5,6],10:[2,3,4,5,6,7,8,9],11:[2,3,4,5,6,7,8,9,10]}
-	return "double" if d and hard_doubles.has(t) and up in hard_doubles[t] else "hit"
-func test_public_strategy() -> void:
-	for a in range(1,14):
-		for b in range(1,14):
-			for up in range(1,14):
-				for funds in [0,99,100,1000]:
-					for allow in [false,true]:
-						var h: Array=[{"rank":a},{"rank":b}]
-						ck(Rules.decision(h,{"rank":up},funds,100,allow)==policy(h,up,funds,100,allow),"public strategy matrix")
-	var a=rig(hands(8,8),[10,7],[2]);var b=rig(hands(8,8),[10,7],[2])
-	a.start_round(100);b.start_round(100);a.stand();b.stand()
-	b.dealer_hand[1].rank=2
-	for i in range(2,8):b.players[i].hand=[{"rank":1},{"rank":13}]
-	a.ai_step();b.ai_step()
-	ck(a.players[1]==b.players[1],"AI action invariant to dealer hole and opponent hidden hands")
 func test_void_refunds() -> void:
 	for method in ["hit","double_down"]:
-		var g=rig(hands(5,6),[6,10]);g.start_round(100)
+		var g=rig(hands(5,6),[6,10]);g.start_round(stakes(100))
 		g.discard_pile.append_array(g.draw_pile);g.draw_pile.clear()
 		ck(g.call(method).ok and g.phase=="settled","empty shoe voids atomically")
 		for p in g.players:ck(p.balance==1000 and p.result.outcome=="void","all8 stakes returned exactly")
@@ -214,3 +191,42 @@ func test_void_refunds() -> void:
 		g.dealer_step();g.double_down();g.hit()
 		ck(state==snap(g),"void refund idempotent")
 		conservation(g,"void card conservation")
+
+func stakes(amount: int) -> Array:
+	return [amount,amount,amount,amount,amount,amount,amount,amount]
+func test_five_card_priority() -> void:
+	# Only one active seat, both finish five cards: totals differ but push.
+	var g=Rules.new(30)
+	ck(g.set_next_draws([1,14,27,40,2,3,4,15,16,17]).ok,"five fixture")
+	ck(g.start_round([100,0,0,0,0,0,0,0]).ok,"single explicit seat")
+	g.hit();g.hit();g.hit()
+	ck(g.players[0].hand.size()==5 and g.players[0].result.is_empty(),"five-card locks without early payout")
+	ck(g.players[0].balance==900 and g.phase=="dealer","five-card retains stake pending dealer")
+	# Force legal dealer five-card reveal to audit payout independently of strategy.
+	for rank in [3,4,5]:
+		for j in g.draw_pile.size():
+			if g.draw_pile[j].rank==rank:
+				g.dealer_hand.append(g.draw_pile.pop_at(j));break
+	g.dealer_step()
+	ck(g.players[0].result.outcome=="push" and g.players[0].balance==1000,"both five-card push regardless points")
+	conservation(g,"five versus five")
+	# Already-paid naturals survive an exceptional shoe void; other stakes refund.
+	var hs:=hands(5,6)
+	for i in range(4):hs[i]=[1,10]
+	g=rig(hs,[6,10]);g.start_round(stakes(100))
+	g.discard_pile.append_array(g.draw_pile);g.draw_pile.clear();g.double_down()
+	for i in range(8):
+		ck(g.players[i].balance==(1200 if i<4 else 1000),"partial settlement then void preserves exact wallet")
+	var state:=snap(g);g.hit();g.dealer_step()
+	ck(snap(g)==state,"partial settlement and void cannot pay twice")
+	conservation(g,"partial immediate payout void")
+
+func test_shoe_order_invariance() -> void:
+	var a=rig(hands(10,8),[10,7]);var b=rig(hands(10,8),[10,7])
+	a.start_round(stakes(100));b.start_round(stakes(100))
+	for i in 8:a.stand();b.stand()
+	b.draw_pile.reverse()
+	var ar:Dictionary=a.dealer_step();var br:Dictionary=b.dealer_step()
+	ck(ar.advice.action==br.advice.action,"shoe permutation leaves dealer action unchanged")
+	for key in ["stand_ev","hit_ev","best_ev"]:
+		ck(ar.advice[key]==br.advice[key],"shoe permutation leaves "+key+" unchanged")

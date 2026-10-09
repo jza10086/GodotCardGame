@@ -12,18 +12,18 @@ func stable(scene)->void:
 	for c in scene._card_nodes.values():
 		if is_instance_valid(c._flip_tween):c._flip_tween.kill()
 	scene._sync(false)
-func own_hole(scene):return scene.card_node(scene.game.players[0].hand[1].id)
 func privacy(scene)->void:
 	var g=scene.game
-	var hidden:Array=[g.dealer_hand[1].id]
-	for i in range(1,8):hidden.append(g.players[i].hand[1].id)
-	for id in hidden:
-		var c=scene.card_node(id)
-		ck(not c.face_up and c.face_texture==null,"other hidden cards have no face asset")
-		ck(not c.data.has("rank") and not c.data.has("suit"),"other hidden cards have no rank/suit in presentation")
-		ck(not scene.inspection_snapshot(c).has("title"),"hover cannot disclose other hidden face")
-		scene._peek_card(id)
-		ck(not c.face_up and not scene.peek_ids.has(id),"click cannot peek opponents/dealer")
+	for p in g.players:
+		for record in p.hand:
+			var c=scene.card_node(record.id)
+			ck(c.face_up and c.face_texture!=null,"all player cards face up from deal")
+			ck(c.data.has("rank") and scene.inspection_snapshot(c).has("title"),"player public face inspectable")
+	if not g.dealer_revealed:
+		var c=scene.card_node(g.dealer_hand[1].id)
+		ck(not c.face_up and c.face_texture==null,"dealer hole face unavailable")
+		ck(not c.data.has("rank") and not c.data.has("suit"),"dealer hole metadata masked")
+		ck(not scene.inspection_snapshot(c).has("title"),"dealer hole hover cannot reveal")
 func rows(scene)->void:
 	for p in scene.game.players:
 		for record in p.hand:
@@ -46,7 +46,16 @@ func run()->void:
 	await process_frame
 	scene.set_process(false)
 	ck(scene.game==g and g.players.size()==8,"session starts8 players")
-	scene.bet_control.value=100;scene._deal();scene._deal()
+	scene._open_betting()
+	ck(g.phase=="betting" and g.round_number==0,"opening form does not automatically bet")
+	for control in scene.seat_bets:ck(control.value==0,"each seat defaults explicit skip")
+	scene.seats_control.value=1
+	for i in range(1,8):ck(not scene.seat_bets[i].editable and scene.seat_bets[i].value==0,"one-seat configuration disables other bets")
+	scene.seats_control.value=8
+	for control in scene.seat_bets:
+		control.value=100
+		control.get_line_edit().text="100"
+	scene._deal();scene._deal()
 	ck(g.round_number==1 and g.players[0].balance==900,"duplicate UI deal debits once")
 	var state:=snap(g)
 	scene._act("hit")
@@ -55,22 +64,13 @@ func run()->void:
 	ck(scene.played.size()==2 and scene.hand.size()==2,"central dealer and local physical hand")
 	rows(scene);privacy(scene)
 	ck(scene.dealer_label.text.contains("明牌 10 + 暗牌") and not scene.dealer_label.text.contains("17"),"dealer score conceals hole total")
-	var own=own_hole(scene)
-	ck(not own.face_up and not scene.inspection_snapshot(own).has("title"),"own hole initially face down; hover hides")
-	scene._peek_card(own.data.id)
-	ck(own.face_up and scene.peek_ids.has(own.data.id),"own click temporarily reveals")
-	ck(snap(g)==state,"local peek never mutates model")
-	scene._peek_card(own.data.id)
-	ck(not own.face_up and scene.peek_ids.is_empty(),"second click closes peek")
 	for method in ["toggle_view","toggle_top_down","toggle_hand_stowed","reset_view"]:
-		scene._peek_card(own.data.id);scene.call(method)
-		ck(scene.peek_ids.is_empty() and not own.face_up,method+" closes private peek")
+		scene.call(method)
 		rows(scene);privacy(scene)
-	stable(scene);scene._peek_card(own.data.id);scene._open_menu()
-	ck(scene.peek_ids.is_empty() and not own.face_up,"menu closes private peek")
+	stable(scene);scene._open_menu()
 	scene._act("hit");scene._process(2.0)
 	ck(snap(g)==state,"pause freezes all players and dealer")
-	scene._close_menu();scene._peek_card(own.data.id)
+	scene._close_menu()
 	scene._leave();await process_frame;await process_frame
 	ck(current_scene.scene_file_path=="res://scenes/card_lobby.tscn","leave enters lobby")
 	ck(snap(g)==state and session.get_blackjack_ring()==g,"leave preserves whole table state")
@@ -78,16 +78,22 @@ func run()->void:
 	await process_frame;await process_frame
 	scene=current_scene;scene.set_process(false);stable(scene)
 	ck(scene.game==g and snap(g)==state,"reentry resumes8 seats exact state")
-	ck(scene.peek_ids.is_empty() and not own_hole(scene).face_up,"reentry does not restore temporary reveal")
 	privacy(scene);rows(scene)
 	scene._act("stand");stable(scene)
-	ck(g.current_player==1 and g.phase=="player","AI1 acts after human before dealer")
-	state=snap(g);scene._act("hit");scene._act("stand");scene._act("double_down")
-	ck(snap(g)==state,"human buttons cannot control AI hands")
+	ck(g.current_player==1 and g.phase=="player","manual next-seat action follows first seat")
+	ck(scene.active_seat==1 and scene.controlled_player==1,"camera and controlled seat follow manual turn")
+	state=snap(g)
+	for i in 5:scene._process(1.0)
+	ck(snap(g)==state,"waiting manual seat never automatically plays")
+	scene._act("hit");stable(scene)
+	ck(g.players[1].hand.size()==3,"buttons control current local seat")
 	var count:=0
 	while g.phase!="settled" and count<80:
-		stable(scene);scene._process(1.0);count+=1
-	ck(g.phase=="settled","controller progresses7 bots then dealer to settlement")
+		stable(scene)
+		if g.phase=="player":scene._act("stand")
+		else:scene._process(1.0)
+		count+=1
+	ck(g.phase=="settled","manual players then automated dealer settle")
 	stable(scene);state=snap(g)
 	for i in 5:scene._process(1.0)
 	ck(snap(g)==state,"postsettlement frames never pay again")
