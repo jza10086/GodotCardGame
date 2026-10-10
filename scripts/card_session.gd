@@ -9,3 +9,8 @@ var blackjack_ring: RefCounted
 func get_blackjack_ring() -> RefCounted:
 	if blackjack_ring == null: blackjack_ring = load("res://scripts/blackjack_ring_rules.gd").new()
 	return blackjack_ring
+
+var bluff: RefCounted
+func get_bluff() -> RefCounted:
+	if bluff == null: bluff = load("res://scripts/bluff_rules.gd").new()
+	return bluff
