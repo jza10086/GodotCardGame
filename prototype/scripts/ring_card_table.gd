@@ -8,40 +8,9 @@ signal navigation_changed
 const RING_DECK_ORIGIN := Vector3(-4.8, 0, 0)
 
 var bottom_hud_margin := 185.0 # Host-configurable unobstructed top-view band.
-var center_label: Label3D
+@onready var center_label: Label3D = %CenterLabel
 var _seat_captions: Dictionary = {}
 
-func build_world() -> void:
-	player_pitch = deg_to_rad(-54.0)
-	super.build_world()
-	for seat in seats: seat.camera.fov = 80
-	# Move the inherited shoe outline, label, and physical card stack together.
-	var original_outline := get_child(get_child_count() - 1) as Node3D
-	if original_outline != null: original_outline.position += RING_DECK_ORIGIN - DECK_ORIGIN
-	deck_count_label.position = RING_DECK_ORIGIN + Vector3(0, 1.3, 0)
-	for child in get_children():
-		if child is Label3D and child.text == "D E C K":
-			child.position += RING_DECK_ORIGIN - DECK_ORIGIN
-	center_label = Label3D.new()
-	center_label.name = "CenterLabel"
-	center_label.font = font
-	center_label.font_size = 46
-	center_label.pixel_size = 0.014
-	center_label.outline_size = 5
-	center_label.modulate = Color("f1d999")
-	center_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	center_label.position = Vector3(0, 0.65, -2.0)
-	center_label.text = "中央牌区"
-	add_child(center_label)
-	for seat in seats:
-		seat.label.font_size = 34
-		seat.label.pixel_size = 0.014
-		seat.label.position.y = 0.65
-	_update_seat_label_visibility()
-
-## Every card in every zone must have a unique stable id. Invalid snapshots are
-## rejected atomically by RulesTable. private_hidden + peek is a local viewing
-## choice, not a game rule. hidden always wins and never reveals a face.
 func present_ring(player_ids: Array, hands: Array, center_cards: Array, deck_cards: Array, texture_provider: Callable, animated := true) -> bool:
 	var old_faces: Dictionary = {}
 	for id in _card_nodes:

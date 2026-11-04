@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="HandCount" type="Label"]
+theme_override_font_sizes/font_size = 16
+text = "小林 · 7 张"
+text_overrun_behavior = 3

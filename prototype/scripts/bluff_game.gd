@@ -2,13 +2,13 @@ extends "res://scripts/bluff_table.gd"
 const RULES = preload("res://scripts/bluff_rules.gd")
 const UI = preload("res://scripts/card_ui.gd")
 var game: RefCounted
-var hud: Control
-var modal: ColorRect
-var modal_box: VBoxContainer
-var turn_label: Label
-var detail_label: Label
-var chosen_label: Label
-var play_action: Button
+@onready var hud: Control = %Hud
+@onready var modal: ColorRect = %Modal
+@onready var modal_box: VBoxContainer = %ModalBox
+@onready var turn_label: Label = %TurnLabel
+@onready var detail_label: Label = %DetailLabel
+@onready var chosen_label: Label = %ChosenLabel
+@onready var play_action: Button = %PlayAction
 var selected_ids: Array=[]
 var player_names: Array=[]
 var rank_checks: Dictionary={}
@@ -24,7 +24,6 @@ var last_notice := ""
 func _ready() -> void:
 	super._ready()
 	game=get_node("/root/CardSession").get_bluff()
-	_build_hud()
 	card_requested.connect(_choose_card)
 	if game.phase=="setup": _show_settings()
 	else: _handoff()
@@ -38,27 +37,6 @@ func _texture(record: Dictionary) -> Dictionary:
 	if not record.has("rank"): return config
 	config.face=load("res://assets/bluff/joker_%d.svg" % record.rank) if record.rank>=14 else load("res://assets/blackjack/%s_%d.png" % [record.suit,record.rank])
 	return config
-
-func _build_hud() -> void:
-	var layer:=CanvasLayer.new(); layer.layer=5; add_child(layer)
-	hud=Control.new(); hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); hud.mouse_filter=Control.MOUSE_FILTER_IGNORE; hud.theme=UI.theme(); layer.add_child(hud)
-	var panel:=PanelContainer.new(); panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE); panel.offset_left=18; panel.offset_right=-18; panel.offset_top=12; panel.add_theme_stylebox_override("panel",UI.style(Color("112d36"))); hud.add_child(panel)
-	var col:=VBoxContainer.new(); panel.add_child(col)
-	var row:=HBoxContainer.new(); col.add_child(row)
-	var title:=UI.label("吹牛牌  /  BLUFF",24,Color("f4e7bf")); title.size_flags_horizontal=Control.SIZE_EXPAND_FILL; row.add_child(title)
-	row.add_child(_action("视角 V",toggle_view)); row.add_child(_action("俯视 T",toggle_top_down)); row.add_child(_action("菜单 Esc",_show_menu))
-	turn_label=UI.label("",20); col.add_child(turn_label)
-	detail_label=UI.label("",15); detail_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; col.add_child(detail_label)
-	var footer:=PanelContainer.new(); footer.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP); footer.offset_top=165; footer.offset_left=-310; footer.offset_right=310; footer.add_theme_stylebox_override("panel",UI.style(Color("112d36"))); hud.add_child(footer)
-	var actions:=HBoxContainer.new(); footer.add_child(actions)
-	chosen_label=UI.label("",16); chosen_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL; actions.add_child(chosen_label)
-	play_action=_action("盖牌并声明",_play,true); actions.add_child(play_action)
-	actions.add_child(_action("清空",_clear_selection))
-	modal=ColorRect.new(); modal.color=Color("07161bf7"); modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); hud.add_child(modal)
-	var margin:=MarginContainer.new(); margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",36); margin.add_theme_constant_override("margin_right",36); margin.add_theme_constant_override("margin_top",24); margin.add_theme_constant_override("margin_bottom",24); modal.add_child(margin)
-	var scroll:=ScrollContainer.new(); margin.add_child(scroll)
-	var center:=CenterContainer.new(); center.size_flags_horizontal=Control.SIZE_EXPAND_FILL; center.size_flags_vertical=Control.SIZE_EXPAND_FILL; scroll.add_child(center)
-	modal_box=VBoxContainer.new(); modal_box.custom_minimum_size.x=600; modal_box.add_theme_constant_override("separation",12); center.add_child(modal_box)
 
 func _action(caption: String, callback: Callable, primary := false) -> Button:
 	var b:=UI.button(caption,callback,primary); b.custom_minimum_size.y=42; return b

@@ -1,4 +1,1066 @@
-[gd_scene load_steps=2 format=3]
-[ext_resource type="Script" path="res://scripts/blackjack_legacy_game.gd" id="1"]
-[node name="BlackjackGame" type="Node3D"]
-script = ExtResource("1")
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/blackjack_legacy_game.gd" id="1_fd458"]
+[ext_resource type="FontFile" path="res://assets/ui_font.ttf" id="2_1fwjp"]
+[ext_resource type="PackedScene" path="res://scenes/card_3d.tscn" id="3_v18dd"]
+[ext_resource type="Script" path="res://scripts/card_3d.gd" id="4_qimya"]
+[ext_resource type="Texture2D" path="res://assets/blackjack/back.png" id="5_4et4c"]
+
+[sub_resource type="Environment" id="Environment_g1cdm"]
+background_mode = 1
+background_color = Color(0.043137256, 0.09019608, 0.12156863, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.78431374, 0.8666667, 0.8627451, 1)
+ambient_light_energy = 0.85
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dmrvl"]
+albedo_color = Color(0.09803922, 0.16470589, 0.1882353, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_lw57u"]
+size = Vector3(26, 0.7, 17)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ahccn"]
+albedo_color = Color(0.09803922, 0.28627452, 0.25490198, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_i03wm"]
+size = Vector3(22, 0.15, 14)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j17o3"]
+albedo_color = Color(0.12941177, 0.34901962, 0.3019608, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_xk6p0"]
+size = Vector3(21.65, 0.04, 13.65)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dkwqf"]
+albedo_color = Color(0.46666667, 0.6039216, 0.4745098, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_0wq28"]
+size = Vector3(11.8, 0.015, 0.025)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gkpwq"]
+albedo_color = Color(0.46666667, 0.6039216, 0.4745098, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_cu8pa"]
+size = Vector3(11.8, 0.015, 0.025)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dpy2o"]
+albedo_color = Color(0.7490196, 0.6666667, 0.44313726, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_gcgs6"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ikv5a"]
+albedo_color = Color(0.7490196, 0.6666667, 0.44313726, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_i1wa4"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5obqt"]
+albedo_color = Color(0.7490196, 0.6666667, 0.44313726, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_7p7s6"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g4ck4"]
+albedo_color = Color(0.8392157, 0.87058824, 0.8156863, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_omudc"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7rjgc"]
+albedo_color = Color(0.8392157, 0.87058824, 0.8156863, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_k57i0"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_52s73"]
+albedo_color = Color(0.8392157, 0.87058824, 0.8156863, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wdhfy"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gpm2h"]
+albedo_color = Color(0.8392157, 0.87058824, 0.8156863, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_4pc6h"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c06j2"]
+albedo_color = Color(0.70980394, 0.35686275, 0.34117648, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_hrivf"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_waote"]
+albedo_color = Color(0.70980394, 0.35686275, 0.34117648, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_t5521"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lvd2q"]
+albedo_color = Color(0.70980394, 0.35686275, 0.34117648, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_0oyqx"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cigp6"]
+albedo_color = Color(0.70980394, 0.35686275, 0.34117648, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_od1er"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xxubf"]
+albedo_color = Color(0.70980394, 0.35686275, 0.34117648, 1)
+roughness = 0.7
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_8rua6"]
+top_radius = 0.37
+bottom_radius = 0.37
+height = 0.09
+
+[sub_resource type="Theme" id="Theme_br51g"]
+default_font = ExtResource("2_1fwjp")
+default_font_size = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_00nda"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.0627451, 0.17254902, 0.20784314, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ftg7p"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hrfxg"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_81j11"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_iikh2"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_na1c7"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_khx52"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c3orw"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j34ti"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1esae"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.0627451, 0.17254902, 0.20784314, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xqpjl"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t4nd2"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3b4om"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u442q"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2y3ho"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ekjki"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fwnnw"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_b3atu"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m556h"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.7882353, 0.6509804, 0.36078432, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jcjig"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.70980394, 0.57254905, 0.3137255, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bl8pa"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.9137255, 0.7764706, 0.47058824, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_loexu"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2kr88"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.7882353, 0.6509804, 0.36078432, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e0hwt"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.70980394, 0.57254905, 0.3137255, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sqjfw"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.9137255, 0.7764706, 0.47058824, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0fqxl"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yfk5b"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qbbos"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y8jb3"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_k2s7h"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cgp1u"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_usi8l"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6slw6"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_prv42"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ffq1y"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.7882353, 0.6509804, 0.36078432, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_citws"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.70980394, 0.57254905, 0.3137255, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_khng6"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.9137255, 0.7764706, 0.47058824, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_aoayh"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4vx5j"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.14117648, 0.27450982, 0.30980393, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dngvy"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.09411765, 0.23529412, 0.2627451, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hjbnr"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.21176471, 0.36862746, 0.39607844, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dbf71"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.1254902, 0.2, 0.21176471, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mw2ip"]
+content_margin_left = 22.0
+content_margin_top = 15.0
+content_margin_right = 22.0
+content_margin_bottom = 15.0
+bg_color = Color(0.0627451, 0.17254902, 0.20784314, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[node name="BlackjackGame" type="Node3D" unique_id=1309901732]
+script = ExtResource("1_fd458")
+
+[node name="WorldEnvironment1" type="WorldEnvironment" parent="." unique_id=1330733928]
+environment = SubResource("Environment_g1cdm")
+
+[node name="DirectionalLight3D2" type="DirectionalLight3D" parent="." unique_id=1743570111]
+transform = Transform3D(0.90630776, 0.36599818, -0.21130912, 0, 0.49999997, 0.86602545, 0.42261827, -0.7848856, 0.45315385, 0, 0, 0)
+light_energy = 0.65
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="." unique_id=829683434]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.6, 0)
+material_override = SubResource("StandardMaterial3D_dmrvl")
+mesh = SubResource("BoxMesh_lw57u")
+
+[node name="MeshInstance3D4" type="MeshInstance3D" parent="." unique_id=1218896675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.18, 0)
+material_override = SubResource("StandardMaterial3D_ahccn")
+mesh = SubResource("BoxMesh_i03wm")
+
+[node name="MeshInstance3D5" type="MeshInstance3D" parent="." unique_id=1360896623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
+material_override = SubResource("StandardMaterial3D_j17o3")
+mesh = SubResource("BoxMesh_xk6p0")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=640919572]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 0.47993648, 0.87730324, 0, -0.87730324, 0.47993648, 0, 17, 9.3)
+projection = 1
+current = true
+size = 21.5
+
+[node name="MeshInstance3D7" type="MeshInstance3D" parent="." unique_id=343309833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, -1.05)
+material_override = SubResource("StandardMaterial3D_dkwqf")
+mesh = SubResource("BoxMesh_0wq28")
+
+[node name="MeshInstance3D8" type="MeshInstance3D" parent="." unique_id=2081290675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 3.65)
+material_override = SubResource("StandardMaterial3D_gkpwq")
+mesh = SubResource("BoxMesh_cu8pa")
+
+[node name="Label3D9" type="Label3D" parent="." unique_id=624693012]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0.015, -0.05)
+pixel_size = 0.008
+modulate = Color(0.65882355, 0.7254902, 0.58431375, 1)
+text = "T W E N T Y   O N E"
+font = ExtResource("2_1fwjp")
+font_size = 58
+
+[node name="Card3D" parent="." unique_id=801364704 instance=ExtResource("3_v18dd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.25, -0.2)
+script = ExtResource("4_qimya")
+back_texture = ExtResource("5_4et4c")
+face_up = false
+
+[node name="Node3D11" parent="." unique_id=440647994 instance=ExtResource("3_v18dd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.305, -0.2)
+script = ExtResource("4_qimya")
+back_texture = ExtResource("5_4et4c")
+face_up = false
+
+[node name="Node3D12" parent="." unique_id=905012059 instance=ExtResource("3_v18dd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.36, -0.2)
+script = ExtResource("4_qimya")
+back_texture = ExtResource("5_4et4c")
+face_up = false
+
+[node name="Node3D13" parent="." unique_id=659925171 instance=ExtResource("3_v18dd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.41500002, -0.2)
+script = ExtResource("4_qimya")
+back_texture = ExtResource("5_4et4c")
+face_up = false
+
+[node name="MeshInstance3D14" type="MeshInstance3D" parent="." unique_id=84267355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.08, -0.25)
+material_override = SubResource("StandardMaterial3D_dpy2o")
+mesh = SubResource("CylinderMesh_gcgs6")
+
+[node name="MeshInstance3D15" type="MeshInstance3D" parent="." unique_id=332659146]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.175, -0.25)
+material_override = SubResource("StandardMaterial3D_ikv5a")
+mesh = SubResource("CylinderMesh_i1wa4")
+
+[node name="MeshInstance3D16" type="MeshInstance3D" parent="." unique_id=1737555356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.27, -0.25)
+material_override = SubResource("StandardMaterial3D_5obqt")
+mesh = SubResource("CylinderMesh_7p7s6")
+
+[node name="MeshInstance3D17" type="MeshInstance3D" parent="." unique_id=252192897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 0.08, 0.15)
+material_override = SubResource("StandardMaterial3D_g4ck4")
+mesh = SubResource("CylinderMesh_omudc")
+
+[node name="MeshInstance3D18" type="MeshInstance3D" parent="." unique_id=2121779303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 0.175, 0.15)
+material_override = SubResource("StandardMaterial3D_7rjgc")
+mesh = SubResource("CylinderMesh_k57i0")
+
+[node name="MeshInstance3D19" type="MeshInstance3D" parent="." unique_id=1690244875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 0.27, 0.15)
+material_override = SubResource("StandardMaterial3D_52s73")
+mesh = SubResource("CylinderMesh_wdhfy")
+
+[node name="MeshInstance3D20" type="MeshInstance3D" parent="." unique_id=17735838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 0.365, 0.15)
+material_override = SubResource("StandardMaterial3D_gpm2h")
+mesh = SubResource("CylinderMesh_4pc6h")
+
+[node name="MeshInstance3D21" type="MeshInstance3D" parent="." unique_id=700754449]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.08, 0.55)
+material_override = SubResource("StandardMaterial3D_c06j2")
+mesh = SubResource("CylinderMesh_hrivf")
+
+[node name="MeshInstance3D22" type="MeshInstance3D" parent="." unique_id=966585879]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.175, 0.55)
+material_override = SubResource("StandardMaterial3D_waote")
+mesh = SubResource("CylinderMesh_t5521")
+
+[node name="MeshInstance3D23" type="MeshInstance3D" parent="." unique_id=1939787680]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.27, 0.55)
+material_override = SubResource("StandardMaterial3D_lvd2q")
+mesh = SubResource("CylinderMesh_0oyqx")
+
+[node name="MeshInstance3D24" type="MeshInstance3D" parent="." unique_id=1698083697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.365, 0.55)
+material_override = SubResource("StandardMaterial3D_cigp6")
+mesh = SubResource("CylinderMesh_od1er")
+
+[node name="MeshInstance3D25" type="MeshInstance3D" parent="." unique_id=328321790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.46, 0.55)
+material_override = SubResource("StandardMaterial3D_xxubf")
+mesh = SubResource("CylinderMesh_8rua6")
+
+[node name="CanvasLayer26" type="CanvasLayer" parent="." unique_id=418734256]
+
+[node name="Hud" type="Control" parent="CanvasLayer26" unique_id=1698150784]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme = SubResource("Theme_br51g")
+
+[node name="MarginContainer1" type="MarginContainer" parent="CanvasLayer26/Hud" unique_id=1290707484]
+layout_mode = 0
+anchor_right = 1.0
+offset_left = 28.0
+offset_top = 24.0
+offset_right = -28.0
+
+[node name="PanelContainer1" type="PanelContainer" parent="CanvasLayer26/Hud/MarginContainer1" unique_id=79336458]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_00nda")
+
+[node name="HBoxContainer1" type="HBoxContainer" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1" unique_id=1014405274]
+layout_mode = 2
+theme_override_constants/separation = 22
+
+[node name="VBoxContainer1" type="VBoxContainer" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1" unique_id=1594767628]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label1" type="Label" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/VBoxContainer1" unique_id=2026325343]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9490196, 0.8745098, 0.6745098, 1)
+theme_override_font_sizes/font_size = 29
+text = "TWENTY ONE   /   21 点"
+
+[node name="Label2" type="Label" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/VBoxContainer1" unique_id=1431720477]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.60784316, 0.72156864, 0.7137255, 1)
+theme_override_font_sizes/font_size = 15
+text = "一副牌 · AI 庄家 · 软 / 硬 17 停牌"
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1" unique_id=1951373086]
+layout_mode = 2
+
+[node name="BalanceLabel" type="Label" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/VBoxContainer2" unique_id=1402249979]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94509804, 0.8352941, 0.5568628, 1)
+theme_override_font_sizes/font_size = 24
+text = "余额 1,000"
+
+[node name="StakeLabel" type="Label" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/VBoxContainer2" unique_id=150487584]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8392157, 0.89411765, 0.8745098, 1)
+theme_override_font_sizes/font_size = 15
+text = "下注 100"
+
+[node name="Button3" type="Button" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1" unique_id=1617683295]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_ftg7p")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_hrfxg")
+theme_override_styles/hover = SubResource("StyleBoxFlat_81j11")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_iikh2")
+text = "规则 / 菜单"
+
+[node name="Button4" type="Button" parent="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1" unique_id=1650910601]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_na1c7")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_khx52")
+theme_override_styles/hover = SubResource("StyleBoxFlat_c3orw")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_j34ti")
+text = "返回大厅"
+
+[node name="DealerLabel" type="Label" parent="CanvasLayer26/Hud" unique_id=532578316]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 185.0
+offset_bottom = 23.0
+theme_override_colors/font_color = Color(0.9019608, 0.85882354, 0.72156864, 1)
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+text = "庄家手牌"
+
+[node name="PlayerLabel" type="Label" parent="CanvasLayer26/Hud" unique_id=100992729]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_top = 0.685
+anchor_right = 1.0
+anchor_bottom = 0.685
+offset_bottom = 23.0
+theme_override_colors/font_color = Color(0.9019608, 0.85882354, 0.72156864, 1)
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+text = "玩家手牌"
+
+[node name="PanelContainer4" type="PanelContainer" parent="CanvasLayer26/Hud" unique_id=666520275]
+layout_mode = 0
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -520
+offset_top = -204.0
+offset_right = 520
+offset_bottom = -24.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_1esae")
+anchor_left = 0.5
+
+[node name="VBoxContainer1" type="VBoxContainer" parent="CanvasLayer26/Hud/PanelContainer4" unique_id=1899649014]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1" unique_id=433940748]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95686275, 0.8745098, 0.6666667, 1)
+theme_override_font_sizes/font_size = 23
+horizontal_alignment = 1
+text = "轮到 2 号玩家"
+
+[node name="DetailLabel" type="Label" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1" unique_id=437082836]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6627451, 0.7647059, 0.73333335, 1)
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 1
+text = "等待玩家行动"
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1" unique_id=738235240]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="MinusButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=1774669556]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_xqpjl")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_t4nd2")
+theme_override_styles/hover = SubResource("StyleBoxFlat_3b4om")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_u442q")
+text = "− 10"
+
+[node name="BetControl" type="SpinBox" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=1743541729]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(135, 52)
+layout_mode = 2
+min_value = 10.0
+max_value = 1000.0
+step = 10.0
+value = 100.0
+suffix = "金币"
+
+[node name="PlusButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=927620514]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_2y3ho")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_ekjki")
+theme_override_styles/hover = SubResource("StyleBoxFlat_fwnnw")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_b3atu")
+text = "+ 10"
+
+[node name="DealButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=1042410838]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_hover_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_m556h")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_jcjig")
+theme_override_styles/hover = SubResource("StyleBoxFlat_bl8pa")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_loexu")
+text = "下注并发牌"
+
+[node name="HitButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=407665683]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_hover_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_2kr88")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_e0hwt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_sqjfw")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_0fqxl")
+text = "要牌  H"
+
+[node name="StandButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=1662324427]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_yfk5b")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_qbbos")
+theme_override_styles/hover = SubResource("StyleBoxFlat_y8jb3")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_k2s7h")
+text = "停牌  S"
+
+[node name="DoubleButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=794288154]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_cgp1u")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_usi8l")
+theme_override_styles/hover = SubResource("StyleBoxFlat_6slw6")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_prv42")
+text = "加倍  D"
+
+[node name="NextButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=2018959353]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_hover_color = Color(0.08627451, 0.16862746, 0.1882353, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_ffq1y")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_citws")
+theme_override_styles/hover = SubResource("StyleBoxFlat_khng6")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_aoayh")
+text = "下一局"
+
+[node name="ResetButton" type="Button" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3" unique_id=1768657941]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88235295, 0.9137255, 0.8862745, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40784314, 0.5058824, 0.5137255, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_4vx5j")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dngvy")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hjbnr")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_dbf71")
+text = "重置金币"
+
+[node name="Label4" type="Label" parent="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1" unique_id=2114655811]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.54901963, 0.67058825, 0.6666667, 1)
+theme_override_font_sizes/font_size = 13
+text = "加倍：再下等额，只补一张后停牌  ·  A 自动计 1 / 11  ·  金币无真实价值"
+horizontal_alignment = 1
+
+[node name="Modal" type="ColorRect" parent="CanvasLayer26/Hud" unique_id=2113540240]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.02, 0.05, 0.07, 0.9)
+
+[node name="CenterContainer1" type="CenterContainer" parent="CanvasLayer26/Hud/Modal" unique_id=208980698]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="PanelContainer1" type="PanelContainer" parent="CanvasLayer26/Hud/Modal/CenterContainer1" unique_id=1117275313]
+custom_minimum_size = Vector2(660, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_mw2ip")
+
+[node name="ModalCol" type="VBoxContainer" parent="CanvasLayer26/Hud/Modal/CenterContainer1/PanelContainer1" unique_id=229837382]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[connection signal="pressed" from="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/Button3" to="." method="_open_menu"]
+[connection signal="pressed" from="CanvasLayer26/Hud/MarginContainer1/PanelContainer1/HBoxContainer1/Button4" to="." method="_leave"]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/MinusButton" to="." method="_decrease_bet"]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/PlusButton" to="." method="_increase_bet"]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/DealButton" to="." method="_deal"]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/HitButton" to="." method="_act" binds= ["hit"]]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/StandButton" to="." method="_act" binds= ["stand"]]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/DoubleButton" to="." method="_act" binds= ["double_down"]]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/NextButton" to="." method="_act" binds= ["next_round"]]
+[connection signal="pressed" from="CanvasLayer26/Hud/PanelContainer4/VBoxContainer1/HBoxContainer3/ResetButton" to="." method="_confirm_reset"]

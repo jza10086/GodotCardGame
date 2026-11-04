@@ -3,26 +3,26 @@ extends "res://scripts/ring_card_table.gd"
 const RULES = preload("res://scripts/blackjack_ring_rules.gd")
 const UI = preload("res://scripts/card_ui.gd")
 var game: RefCounted
-var hud: Control
-var footer_panel: PanelContainer
-var balance_label: Label
-var stake_label: Label
-var dealer_label: Label
-var player_label: Label
-var status_label: Label
-var detail_label: Label
-var results_label: Label
-var bet_control: SpinBox
-var deal_button: Button
-var hit_button: Button
-var stand_button: Button
-var double_button: Button
-var next_button: Button
-var reset_button: Button
-var minus_button: Button
-var plus_button: Button
-var modal: ColorRect
-var modal_col: VBoxContainer
+@onready var hud: Control = %Hud
+@onready var footer_panel: PanelContainer = %FooterPanel
+@onready var balance_label: Label = %BalanceLabel
+@onready var stake_label: Label = %StakeLabel
+@onready var dealer_label: Label = %DealerLabel
+@onready var player_label: Label = %PlayerLabel
+@onready var status_label: Label = %StatusLabel
+@onready var detail_label: Label = %DetailLabel
+@onready var results_label: Label = %ResultsLabel
+@onready var bet_control: SpinBox = %BetControl
+@onready var deal_button: Button = %DealButton
+@onready var hit_button: Button = %HitButton
+@onready var stand_button: Button = %StandButton
+@onready var double_button: Button = %DoubleButton
+@onready var next_button: Button = %NextButton
+@onready var reset_button: Button = %ResetButton
+@onready var minus_button: Button = %MinusButton
+@onready var plus_button: Button = %PlusButton
+@onready var modal: ColorRect = %Modal
+@onready var modal_col: VBoxContainer = %ModalCol
 var dealer_clock := 0.0
 var paused := false
 var textures: Dictionary = {}
@@ -31,7 +31,7 @@ var seat_bets: Array = []
 var betting_panel: PanelContainer
 var seats_control: SpinBox
 var dealer_mode_control: OptionButton
-var probability_label: Label
+@onready var probability_label: Label = %ProbabilityLabel
 var _presented_phase := ""
 var controlled_player := 0
 var fixture_name := ""
@@ -43,7 +43,6 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--blackjack-fixture="): fixture_name = arg.get_slice("=",1)
 	if not fixture_name.is_empty() and game.phase == "betting" and game.state_version == 0: _apply_fixture(fixture_name)
-	_build_ui()
 	card_requested.connect(_peek_card)
 	navigation_changed.connect(_close_peek)
 	set_view(false)
@@ -81,39 +80,6 @@ func _panel(parent: Node, color := Color("102c35")) -> PanelContainer:
 	var panel := PanelContainer.new(); panel.add_theme_stylebox_override("panel",UI.style(color,12)); parent.add_child(panel); return panel
 func _small_button(text_value:String, callback:Callable, primary:=false) -> Button:
 	var value:=UI.button(text_value,callback,primary);value.custom_minimum_size.y=40;value.add_theme_font_size_override("font_size",16);return value
-func _build_ui() -> void:
-	var layer := CanvasLayer.new(); add_child(layer)
-	hud=Control.new();hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);hud.mouse_filter=Control.MOUSE_FILTER_IGNORE;hud.theme=UI.theme();layer.add_child(hud)
-	var header:=PanelContainer.new();header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE);header.offset_left=18;header.offset_right=-18;header.offset_top=12;header.add_theme_stylebox_override("panel",UI.style(Color("102c35"),12));hud.add_child(header)
-	var row:=HBoxContainer.new();row.add_theme_constant_override("separation",16);header.add_child(row)
-	var titles:=VBoxContainer.new();titles.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(titles)
-	titles.add_child(UI.label("21 点  /  八人环桌",24,Color("f2dfac")))
-	titles.add_child(UI.label("庄家居中 · 六副牌 · 1–8 位挑战者 · AI / 玩家庄家 · 虚拟金币",14,Color("9bb8b6")))
-	var bank:=VBoxContainer.new();row.add_child(bank);balance_label=UI.label("",21,Color("f1d58e"));bank.add_child(balance_label);stake_label=UI.label("",14);bank.add_child(stake_label)
-	row.add_child(_small_button("视角 V",toggle_view));row.add_child(_small_button("俯视 T",toggle_top_down));row.add_child(_small_button("菜单",_open_menu));row.add_child(_small_button("大厅",_leave))
-	var footer:=PanelContainer.new();footer_panel=footer;footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE);footer.offset_left=18;footer.offset_right=-18;footer.offset_top=-160;footer.offset_bottom=-12;footer.add_theme_stylebox_override("panel",UI.style(Color("102c35"),12));hud.add_child(footer)
-	var col:=VBoxContainer.new();col.add_theme_constant_override("separation",5);footer.add_child(col)
-	status_label=UI.label("",20,Color("f4dfaa"));status_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(status_label)
-	detail_label=UI.label("",14,Color("a9c3bb"));detail_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(detail_label)
-	probability_label=UI.label("",14,Color("d5e9db"));probability_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(probability_label)
-	var actions:=HBoxContainer.new();actions.alignment=BoxContainer.ALIGNMENT_CENTER;actions.add_theme_constant_override("separation",8);col.add_child(actions)
-	minus_button=_small_button("− 10",func():bet_control.value-=10);actions.add_child(minus_button)
-	bet_control=SpinBox.new();bet_control.min_value=0;bet_control.max_value=1000;bet_control.step=10;bet_control.value=100;bet_control.custom_minimum_size=Vector2(125,40);bet_control.suffix="金币";actions.add_child(bet_control)
-	plus_button=_small_button("+ 10",func():bet_control.value+=10);actions.add_child(plus_button)
-	deal_button=_small_button("设置全桌下注",_open_betting,true);actions.add_child(deal_button)
-	hit_button=_small_button("要牌 H",func():_act("hit"),true);actions.add_child(hit_button)
-	stand_button=_small_button("停牌 S",func():_act("stand"));actions.add_child(stand_button)
-	double_button=_small_button("加倍 D",func():_act("double_down"));actions.add_child(double_button)
-	next_button=_small_button("下一局",func():_act("next_round"),true);actions.add_child(next_button)
-	reset_button=_small_button("重置金币",_confirm_reset);actions.add_child(reset_button)
-	player_label=UI.label("玩家全部明牌 · 轮流手动操作 · 右键转头 · Tab 自由看桌 · R 复位",13,Color("8cabaa"));player_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(player_label)
-	results_label=UI.label("",14,Color("eed5a1"));results_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;col.add_child(results_label)
-	dealer_label=UI.label("",14);dealer_label.hide();hud.add_child(dealer_label)
-	modal=ColorRect.new();modal.color=Color(0.02,0.05,0.07,0.94);modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);hud.add_child(modal)
-	var center:=CenterContainer.new();center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);modal.add_child(center)
-	var panel:=_panel(center);panel.custom_minimum_size.x=700
-	modal_col=VBoxContainer.new();modal_col.add_theme_constant_override("separation",13);panel.add_child(modal_col);modal.hide()
-
 func _texture(record: Dictionary) -> Dictionary:
 	var config:Dictionary={"back":load("res://assets/blackjack/back.png"),"title":"暗牌"}
 	if not record.has("rank"):return config
@@ -334,3 +300,9 @@ func _unhandled_input(event:InputEvent) -> void:
 			KEY_S:_act("stand");get_viewport().set_input_as_handled();return
 			KEY_D:_act("double_down");get_viewport().set_input_as_handled();return
 	super._unhandled_input(event)
+
+func _decrease_bet() -> void:
+	bet_control.value -= 10
+
+func _increase_bet() -> void:
+	bet_control.value += 10

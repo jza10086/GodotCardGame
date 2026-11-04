@@ -11,20 +11,21 @@ const PLAY_LIMIT := 16
 var seats: Array[Dictionary] = []
 var active_seat := 0
 var pending_player_count := 8
-var player_count_select: OptionButton
+@onready var player_count_select: OptionButton = %PlayerCountSelect
 var menu_open := false
-var debug_menu: ColorRect
-var menu_panel: PanelContainer
-var menu_content: VBoxContainer
-var resume_button: Button
+@onready var debug_menu: ColorRect = %DebugMenu
+@onready var menu_panel: PanelContainer = %MenuPanel
+@onready var menu_content: VBoxContainer = %MenuContent
+@onready var resume_button: Button = %ResumeButton
 var _menu_restore_capture := false
 var _application_focused := true
 var _round_players: Array = []
 var _player_seats: Dictionary = {}
 var seat_buttons: Array[Button] = []
-var hide_button: Button
+@onready var hide_button: Button = %HideButton
+
 const HAND_LIMIT := 8
-var camera: Camera3D
+@onready var camera: Camera3D = %Camera1
 var hand: Array[Card3D] = []
 var played: Array[Card3D] = []
 var deck: Array[Dictionary] = []
@@ -32,11 +33,11 @@ var deck_visual: Array[Card3D] = []
 # Flights animate the existing card node; logical zones reserve capacity immediately.
 var flights: Dictionary = {}
 var selected_cards: Array[Card3D] = []
-var play_button: Button
-var deck_count_label: Label3D
-var last_play_panel: PanelContainer
-var last_play_label: Label
-var last_play_cards: HBoxContainer
+@onready var play_button: Button = %PlayButton
+@onready var deck_count_label: Label3D = %DeckCountLabel
+@onready var last_play_panel: PanelContainer = %LastPlayPanel
+@onready var last_play_label: Label = %LastPlayLabel
+@onready var last_play_cards: HBoxContainer = %LastPlayCards
 var _last_play: Dictionary = {}
 var _preview_textures: Dictionary = {}
 var _pending_play: Dictionary = {}
@@ -45,36 +46,36 @@ var hovered: Card3D
 var pressed: Card3D
 var dragged: Card3D
 var press_position := Vector2.ZERO
-var counts: Label
-var status: Label
-var draw_button: Button
-var flip_button: Button
-var return_button: Button
-var play_border: MeshInstance3D
-var action_bar: VBoxContainer
-var ui: Control
+@onready var counts: Label = %Counts
+@onready var status: Label = %Status
+@onready var draw_button: Button = %DrawButton
+@onready var flip_button: Button = %FlipButton
+@onready var return_button: Button = %ReturnButton
+@onready var play_border: MeshInstance3D = %PlayBorder
+@onready var action_bar: VBoxContainer = %ActionBar
+@onready var ui: Control = %Ui
 var font: Font
 var screenshots := 0
 # The hand, table, and both cameras share one World3D.
 # Observer orbit never alters the player look rig.
-var player_rig: Node3D
-var hand_world: Node3D
-var first_camera: Camera3D
-var observer_camera: Camera3D
+@onready var player_rig: Node3D = %Rig1
+@onready var hand_world: Node3D = %Anchor1
+@onready var first_camera: Camera3D = %Camera1
+@onready var observer_camera: Camera3D = %ObserverCamera
 var third_person := false
 var top_down := false
-var top_camera: Camera3D
+@onready var top_camera: Camera3D = %TopCamera
 var hand_stowed := false
 var free_look := false
 var auto_collapsed := false
 var hand_idle := 0.0
-var stow_button: Button
-var top_button: Button
-var crosshair: Label
-var inspect_panel: PanelContainer
-var inspect_title: Label
-var inspect_grid: GridContainer
-var inspect_scroll: ScrollContainer
+@onready var stow_button: Button = %StowButton
+@onready var top_button: Button = %TopButton
+@onready var crosshair: Label = %Crosshair
+@onready var inspect_panel: PanelContainer = %InspectPanel
+@onready var inspect_title: Label = %InspectTitle
+@onready var inspect_grid: GridContainer = %InspectGrid
+@onready var inspect_scroll: ScrollContainer = %InspectScroll
 var inspect_elapsed := 0.0
 var inspect_key := ""
 var inspect_target: Card3D
@@ -83,8 +84,8 @@ var _group_serial := 0
 signal world_target_changed(card: Card3D, controllable: bool)
 # A future rules host may consume this signal; it never grants ownership.
 signal world_interaction_requested(card: Card3D, controllable: bool)
-var view_button: Button
-var view_label: Label
+@onready var view_button: Button = %ViewButton
+@onready var view_label: Label = %ViewLabel
 var looking := false
 var player_yaw := 0.0
 var player_pitch := deg_to_rad(-38.0)
@@ -203,186 +204,22 @@ func reset_view() -> void:
 
 func _ready() -> void:
 	font = load("res://assets/ui_font.ttf")
-	build_world()
-	build_ui()
+	_bind_table()
 	start_pending_round()
 
-func flat_material(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.95
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return m
-
-func slab(size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.position = pos
-	mesh.material_override = flat_material(color)
-	add_child(mesh)
-	return mesh
-
-func octagon_vertices(apothem: float, height: float) -> PackedVector3Array:
-	var vertices := PackedVector3Array()
-	var radius := apothem / cos(PI / 8.0)
-	for i in SEAT_COUNT:
-		var angle := TAU * float(i) / SEAT_COUNT - PI / 8.0
-		vertices.append(Vector3(sin(angle) * radius, height, cos(angle) * radius))
-	return vertices
-
-func octagonal_slab(apothem: float, top: float, depth: float, color: Color, node_name: String) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	mesh.name = node_name
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var upper := octagon_vertices(apothem, top)
-	var lower := octagon_vertices(apothem, top - depth)
-	for i in SEAT_COUNT:
-		var next := (i + 1) % SEAT_COUNT
-		st.set_normal(Vector3.UP)
-		for vertex in [Vector3(0, top, 0), upper[next], upper[i]]:
-			st.add_vertex(vertex)
-		st.set_normal(Vector3.DOWN)
-		for vertex in [Vector3(0, top-depth, 0), lower[i], lower[next]]:
-			st.add_vertex(vertex)
-		st.set_normal(Vector3(sin(TAU*i/SEAT_COUNT), 0, cos(TAU*i/SEAT_COUNT)))
-		for vertex in [upper[i], upper[next], lower[i], lower[i], upper[next], lower[next]]:
-			st.add_vertex(vertex)
-	mesh.mesh = st.commit()
-	mesh.material_override = flat_material(color)
-	# The slab is also visible while orbiting underneath it.
-	mesh.material_override.cull_mode = BaseMaterial3D.CULL_DISABLED
-	add_child(mesh)
-	return mesh
-
-func octagonal_border(apothem: float, height: float, color: Color, width: float) -> Node3D:
-	var border := Node3D.new()
-	border.name = "OctagonalInlay"
-	add_child(border)
-	var vertices := octagon_vertices(apothem, height)
-	for i in SEAT_COUNT:
-		var a := vertices[i]
-		var b := vertices[(i + 1) % SEAT_COUNT]
-		var edge := slab(Vector3(a.distance_to(b), width, width), (a+b)/2.0, color)
-		edge.rotation.y = -atan2(b.z-a.z, b.x-a.x)
-		edge.reparent(border)
-	return border
-
-func line_rect(center: Vector3, size: Vector2, color: Color, width := 0.025) -> MeshInstance3D:
-	var root_mesh := MeshInstance3D.new()
-	add_child(root_mesh)
-	for side in [-1,1]:
-		var a := slab(Vector3(size.x,width,width), center+Vector3(0,0,side*size.y/2),color)
-		var b := slab(Vector3(width,width,size.y),center+Vector3(side*size.x/2,0,0),color)
-		a.reparent(root_mesh)
-		b.reparent(root_mesh)
-	return root_mesh
-
-func label_3d(text: String, pos: Vector3, size := 30, color := Color("698984")) -> void:
-	var label := Label3D.new()
-	label.text = text
-	label.font = font
-	label.font_size = size
-	label.pixel_size = 0.006
-	label.modulate = color
-	label.position = pos + Vector3(0, 0.08, 0)
-	label.outline_size = 0
-	label.shaded = false
-	label.rotation_degrees.x = -90
-	label.no_depth_test = false
-	add_child(label)
-
-func build_world() -> void:
-	var environment := WorldEnvironment.new()
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("0c2027")
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("b3d7d1")
-	env.ambient_light_energy = 0.28
-	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	environment.environment = env
-	add_child(environment)
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-65,-30,0)
-	light.light_energy = 0.72
-	light.shadow_enabled = true
-	add_child(light)
-	for i in SEAT_COUNT:
-		var yaw := TAU * float(i) / SEAT_COUNT
-		var rig := Node3D.new()
-		rig.name = "PlayerLookRig%d" % (i+1)
-		add_child(rig)
-		rig.position = Vector3(sin(yaw)*SEAT_RADIUS,8.0,cos(yaw)*SEAT_RADIUS)
-		rig.rotation = Vector3(player_pitch,yaw,0)
-		var seat_camera := Camera3D.new()
-		seat_camera.fov = 58
-		seat_camera.near = 0.1
-		seat_camera.far = 150
-		rig.add_child(seat_camera)
-		var anchor := Node3D.new()
-		anchor.name = "FloatingHand%d" % (i+1)
-		rig.add_child(anchor)
-		anchor.position = Vector3(0,-0.95,-4.6)
-		anchor.rotation.x = PI/2.0
+func _bind_table() -> void:
+	for i: int in SEAT_COUNT:
+		var suffix: String = str(i + 1)
+		var rig: Node3D = get_node("%Rig" + suffix)
 		var cards: Array[Card3D] = []
-		seats.append({"id":"P%d" % (i+1),"seat_id":i+1,"player_id":"","rig":rig,"camera":seat_camera,"anchor":anchor,"hand":cards,"yaw":yaw})
-		var seat_pos := Vector3(sin(yaw)*10.8,-0.05,cos(yaw)*10.8)
-		var seat_label := Label3D.new()
-		seat_label.text = "P%d" % (i+1)
-		seat_label.font = font
-		seat_label.font_size = 42
-		seat_label.pixel_size = 0.010
-		seat_label.modulate = Color("d4e7cf")
-		seat_label.outline_size = 6
-		seat_label.outline_modulate = Color("173d40")
-		seat_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		seat_label.position = seat_pos + Vector3(0,0.6,0)
-		add_child(seat_label)
-		seats[i]["label"] = seat_label
-		var marker := line_rect(Vector3.ZERO,Vector2(2.1,1.0),Color("47736d"))
-		marker.name = "SeatMarker%d" % (i+1)
-		marker.position = seat_pos
-		marker.rotation.y = yaw
-	player_rig = seats[0].rig
-	first_camera = seats[0].camera
-	hand_world = seats[0].anchor
-	hand = seats[0].hand
-	first_camera.current = true
-	camera = first_camera
-	observer_camera = Camera3D.new()
-	observer_camera.fov = 56
-	observer_camera.far = 150
-	add_child(observer_camera)
-	apply_observer_look(Vector2.ZERO)
-	top_camera = Camera3D.new()
-	top_camera.name = "TableTopCamera"
-	top_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	top_camera.far = 150
-	add_child(top_camera)
-	top_camera.position = Vector3(0,45,0)
-	top_camera.rotation = Vector3(-PI/2,0,0)
+		seats.append({"id": "P" + suffix, "seat_id": i+1, "player_id": "", "rig": rig,
+			"camera": get_node("%Camera" + suffix), "anchor": get_node("%Anchor" + suffix),
+			"hand": cards, "yaw": rig.rotation.y, "label": get_node("%Label" + suffix)})
+		seat_buttons.append(get_node("%SeatButton" + suffix))
+	hand = seats[active_seat].hand
+	player_pitch = player_rig.rotation.x
+	get_viewport().size_changed.connect(resize_hand)
 	fit_top_camera()
-	octagonal_slab(TABLE_APOTHEM,-0.09,0.46,Color("567b74"),"OctagonalTableRim")
-	octagonal_slab(TABLE_APOTHEM-0.38,-0.07,0.035,Color("133f43"),"OctagonalTableFelt")
-	octagonal_border(TABLE_APOTHEM-0.68,-0.045,Color("709389"),0.035)
-	line_rect(Vector3(0,-0.06,0),Vector2(16.4,8.4),Color("47736d"),0.025)
-	play_border = line_rect(Vector3(0,-0.04,0),Vector2(16.5,8.5),Color("a9d6b6"),0.04)
-	play_border.visible = false
-	label_3d("S H A R E D   T A B L E",Vector3(0,-0.05,-4.8),42)
-	deck_count_label = Label3D.new()
-	deck_count_label.font = font
-	deck_count_label.font_size = 42
-	deck_count_label.pixel_size = 0.010
-	deck_count_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	deck_count_label.position = DECK_ORIGIN+Vector3(0,1.3,0)
-	deck_count_label.modulate = Color("d3edc8")
-	deck_count_label.outline_size = 7
-	add_child(deck_count_label)
-	label_3d("D E C K",DECK_ORIGIN+Vector3(0,-0.05,1.7),32)
-	line_rect(DECK_ORIGIN+Vector3(0,-0.04,0),Vector2(1.9,2.7),Color("416762"),0.018)
 
 func set_active_seat(index: int) -> bool:
 	if index < 0 or index >= SEAT_COUNT or player_at_seat(index+1).is_empty(): return false
@@ -471,162 +308,6 @@ func button(text: String, callback: Callable, primary := false) -> Button:
 	b.focus_mode = Control.FOCUS_NONE
 	b.pressed.connect(callback)
 	return b
-
-func build_ui() -> void:
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	ui = Control.new()
-	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var theme := Theme.new()
-	theme.default_font = font
-	ui.theme = theme
-	layer.add_child(ui)
-	get_viewport().size_changed.connect(resize_hand)
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	margin.add_theme_constant_override("margin_left",48)
-	margin.add_theme_constant_override("margin_right",48)
-	margin.add_theme_constant_override("margin_top",31)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(margin)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(row)
-	var titles := VBoxContainer.new()
-	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	titles.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# This entire former upper-left block lives in the Escape menu.
-	menu_content = titles
-	var setup_row := HBoxContainer.new()
-	setup_row.add_theme_constant_override("separation",12)
-	titles.add_child(setup_row)
-	setup_row.add_child(text_label("ARC / 八角牌桌",24,Color("e7eddf")))
-	player_count_select = OptionButton.new()
-	player_count_select.add_theme_font_size_override("font_size",16)
-	for count in range(2,9): player_count_select.add_item("下局 %d 人" % count,count)
-	player_count_select.select(6)
-	player_count_select.item_selected.connect(func(index: int): set_pending_player_count(player_count_select.get_item_id(index)))
-	setup_row.add_child(player_count_select)
-	setup_row.add_child(button("开始新局",start_pending_round,true))
-	view_label = text_label("第一人称 · 手牌随视线悬浮",16,Color("92aea6"))
-	titles.add_child(view_label)
-	var seat_row := HBoxContainer.new()
-	seat_row.add_theme_constant_override("separation",6)
-	titles.add_child(seat_row)
-	for i in SEAT_COUNT:
-		var seat_button := button("座位%d" % (i+1),set_active_seat.bind(i))
-		seat_button.add_theme_font_size_override("font_size",13)
-		seat_button.add_theme_stylebox_override("normal",style(Color("183a3f"),6))
-		seat_buttons.append(seat_button)
-		seat_row.add_child(seat_button)
-	counts = text_label("",17,Color("b8c9bd"))
-	counts.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	counts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	counts.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	row.add_child(counts)
-	var bottom := VBoxContainer.new()
-	action_bar = bottom
-	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.position.y = -get_viewport().get_visible_rect().size.y*0.45-48
-	bottom.offset_bottom = -get_viewport().get_visible_rect().size.y*0.45
-	bottom.add_theme_constant_override("separation",13)
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(bottom)
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation",8)
-	bottom.add_child(buttons)
-	draw_button = button("摸牌 D",draw_card,true)
-	play_button = button("出牌 Enter",play_selected,true)
-	buttons.add_child(play_button)
-	flip_button = button("翻面  F",flip_selected)
-	return_button = button("收回手牌",return_selected)
-	buttons.add_child(draw_button)
-	buttons.add_child(flip_button)
-	buttons.add_child(return_button)
-	hide_button = button("隐藏  H",toggle_hidden)
-	buttons.add_child(hide_button)
-	view_button = button("全景 V",toggle_view)
-	buttons.add_child(view_button)
-	buttons.add_child(button("复位 R",reset_view))
-	buttons.add_child(button("重置本局",reset))
-	stow_button = button("收起手牌 Tab",toggle_hand_stowed)
-	buttons.add_child(stow_button)
-	top_button = button("俯视桌面 T",toggle_top_down)
-	buttons.add_child(top_button)
-	# One measured row, including navigation, instead of overlapping anchored groups.
-	buttons.add_theme_constant_override("separation",6)
-	for control in buttons.get_children():
-		control.add_theme_font_size_override("font_size",16)
-		for state in ["normal","hover","pressed","disabled"]:
-			var box: StyleBoxFlat = control.get_theme_stylebox(state).duplicate()
-			box.content_margin_left = 9
-			box.content_margin_right = 9
-			control.add_theme_stylebox_override(state,box)
-	crosshair = text_label("+",23,Color("dbf3db"))
-	crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	crosshair.position = Vector2(-8,-17)
-	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	crosshair.visible = false
-	ui.add_child(crosshair)
-	build_inspector()
-	status = text_label("",16,Color("a3bdb1"))
-	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	titles.add_child(status)
-	var hint := text_label("Esc 菜单 · Tab 收起 / 展开 · T 俯视 · Ctrl 多选 / Enter 出牌",14,Color("72978d"))
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ui.add_child(hint)
-	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	hint.position.y = 31
-	var history := PanelContainer.new()
-	last_play_panel = history
-	history.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	history.position = Vector2(-350,172)
-	history.size = Vector2(302,140)
-	history.add_theme_stylebox_override("panel",style(Color("102e34e8"),10,Color("416762")))
-	history.mouse_filter = Control.MOUSE_FILTER_STOP
-	ui.add_child(history)
-	var history_column := VBoxContainer.new()
-	history_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	history.add_child(history_column)
-	last_play_label = text_label("最近出牌 · 暂无",16,Color("c2e8ce"))
-	last_play_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	history_column.add_child(last_play_label)
-	last_play_cards = HBoxContainer.new()
-	last_play_cards.add_theme_constant_override("separation",4)
-	last_play_cards.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	history_column.add_child(last_play_cards)
-	var note := text_label("保留最近一次出牌（单张 / 一组）",12,Color("72978d"))
-	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	history_column.add_child(note)
-
-	# Last child: a full-screen input shield above gameplay and inspection UI.
-	debug_menu = ColorRect.new()
-	debug_menu.name = "EscapeMenu"
-	debug_menu.color = Color(0.015,0.04,0.045,0.78)
-	debug_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	debug_menu.mouse_filter = Control.MOUSE_FILTER_STOP
-	ui.add_child(debug_menu)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	debug_menu.add_child(center)
-	menu_panel = PanelContainer.new()
-	menu_panel.custom_minimum_size = Vector2(720,0)
-	menu_panel.add_theme_stylebox_override("panel",style(Color("102e34"),16,Color("62867a")))
-	center.add_child(menu_panel)
-	var padding := MarginContainer.new()
-	for edge in ["left","right","top","bottom"]:
-		padding.add_theme_constant_override("margin_"+edge,26)
-	menu_panel.add_child(padding)
-	titles.add_theme_constant_override("separation",20)
-	padding.add_child(titles)
-	titles.add_child(text_label("调试与本局设置 · 修改下局人数后，点击开始新局生效",16,Color("92aea6")))
-	resume_button = button("继续游戏  Esc",close_debug_menu,true)
-	titles.add_child(resume_button)
-	titles.add_child(button("返回玩法大厅",func():get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")))
-	debug_menu.hide()
 
 func open_debug_menu() -> void:
 	if menu_open: return
@@ -1357,31 +1038,6 @@ func inspection_group(card: Card3D) -> Array[Card3D]:
 		if candidate == card or (id>=0 and candidate.get_meta("play_group",-2)==id): result.append(candidate)
 	return result
 
-func build_inspector() -> void:
-	inspect_panel = PanelContainer.new()
-	inspect_panel.position = Vector2(38,180)
-	inspect_panel.add_theme_stylebox_override("panel",style(Color("102e34ed"),10,Color("709389")))
-	inspect_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(inspect_panel)
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inspect_panel.add_child(column)
-	inspect_title = text_label("桌面牌",16,Color("d9edda"))
-	inspect_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(inspect_title)
-	inspect_scroll = ScrollContainer.new()
-	inspect_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	inspect_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	inspect_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
-	column.add_child(inspect_scroll)
-	inspect_grid = GridContainer.new()
-	inspect_grid.columns = 3
-	inspect_grid.add_theme_constant_override("h_separation",8)
-	inspect_grid.add_theme_constant_override("v_separation",10)
-	inspect_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inspect_scroll.add_child(inspect_grid)
-	inspect_panel.visible = false
-
 func hide_inspector() -> void:
 	inspect_target = null
 	inspect_elapsed = 0.0
@@ -1438,3 +1094,9 @@ func update_inspector(delta: float) -> void:
 		inspect_grid.add_child(preview)
 	inspect_panel.size = Vector2.ZERO
 	inspect_panel.visible = true
+
+func _select_player_count(index: int) -> void:
+	set_pending_player_count(player_count_select.get_item_id(index))
+
+func _open_card_lobby() -> void:
+	get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")

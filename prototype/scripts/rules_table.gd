@@ -6,7 +6,7 @@ extends "res://scripts/table_demo.gd"
 signal card_requested(card_id: Variant)
 signal draw_requested
 
-var presentation_overlay: Control
+@onready var presentation_overlay: Control = %PresentationOverlay
 var _card_nodes: Dictionary = {}
 var _presented_configs: Dictionary = {}
 var _card_locations: Dictionary = {}
@@ -17,29 +17,9 @@ var interactions_blocked := false
 
 func _ready() -> void:
 	font = load("res://assets/ui_font.ttf")
-	build_world()
-	build_ui()
+	_bind_table()
 	update_hand_pose(1.0)
 
-func build_ui() -> void:
-	# Keep native references alive for inherited navigation methods. The original
-	# demonstration controls are never exposed to a rules-driven game.
-	super.build_ui()
-	ui.hide()
-	presentation_overlay = Control.new()
-	presentation_overlay.name = "PresentationOverlay"
-	presentation_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	presentation_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	presentation_overlay.theme = ui.theme
-	ui.get_parent().add_child(presentation_overlay)
-	crosshair.reparent(presentation_overlay, false)
-	inspect_panel.reparent(presentation_overlay, false)
-
-## hands is an array in player_ids order. Pile tops are the last array entries.
-## Each card needs a unique, stable id. face/back can be Texture2D or paths.
-## texture_provider.call(card_dictionary) may return a Texture2D (face), or a
-## dictionary with face/back textures. Other model fields are passed through.
-## Invalid snapshots leave the currently presented state entirely unchanged.
 func apply_state(player_ids: Array, hands: Array, deck_cards: Array, discard_cards: Array, texture_provider: Callable, animated := true) -> bool:
 	var allocation: Dictionary = ALLOCATION.allocate(player_ids)
 	if allocation.is_empty() or hands.size() != player_ids.size(): return false

@@ -7,24 +7,24 @@ const COLOR_INKS := {"red":Color("e85c69"), "yellow":Color("efbd53"), "green":Co
 var game = RULES.new()
 var players: Array = []
 var textures: Dictionary = {}
-var hud: Control
-var turn_label: Label
-var detail_label: Label
-var color_indicator: Label
-var event_label: Label
-var roster: VBoxContainer
-var action_row: HBoxContainer
-var draw_action: Button
-var pass_action: Button
-var uno_action: Button
-var catch_action: Button
-var penalty_action: Button
-var accept_action: Button
-var challenge_action: Button
-var jump_check: CheckBox
-var announce_check: CheckBox
-var modal: ColorRect
-var modal_box: VBoxContainer
+@onready var hud: Control = %Hud
+@onready var turn_label: Label = %TurnLabel
+@onready var detail_label: Label = %DetailLabel
+@onready var color_indicator: Label = %ColorIndicator
+@onready var event_label: Label = %EventLabel
+@onready var roster: VBoxContainer = %Roster
+@onready var action_row: HBoxContainer = %ActionRow
+@onready var draw_action: Button = %DrawAction
+@onready var pass_action: Button = %PassAction
+@onready var uno_action: Button = %UnoAction
+@onready var catch_action: Button = %CatchAction
+@onready var penalty_action: Button = %PenaltyAction
+@onready var accept_action: Button = %AcceptAction
+@onready var challenge_action: Button = %ChallengeAction
+@onready var jump_check: CheckBox = %JumpCheck
+@onready var announce_check: CheckBox = %AnnounceCheck
+@onready var modal: ColorRect = %Modal
+@onready var modal_box: VBoxContainer = %ModalBox
 var count_option: OptionButton
 var pending_card_id: Variant = null
 var paused := false
@@ -55,7 +55,6 @@ var seen_reaction_card := -1
 
 func _ready() -> void:
 	super._ready()
-	_build_game_ui()
 	card_requested.connect(_human_card)
 	draw_requested.connect(_human_draw)
 	var launch_players:=4
@@ -78,73 +77,6 @@ func _styled_button(label: String, callback: Callable, primary := false) -> Butt
 	b.custom_minimum_size.y = 44
 	b.add_theme_font_size_override("font_size",17)
 	return b
-
-func _build_game_ui() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 5
-	add_child(layer)
-	hud = Control.new()
-	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var theme := Theme.new()
-	theme.default_font = font
-	hud.theme = theme
-	layer.add_child(hud)
-	var header := PanelContainer.new()
-	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	header.offset_left=24; header.offset_right=-24; header.offset_top=20
-	header.add_theme_stylebox_override("panel",style(Color("112d36"),16,Color("355661")))
-	hud.add_child(header)
-	var header_row := HBoxContainer.new()
-	header_row.add_theme_constant_override("separation",24)
-	header.add_child(header_row)
-	var title := VBoxContainer.new()
-	title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	header_row.add_child(title)
-	title.add_child(text_label("S P E C T R U M   /   彩序",23,Color("f1ecd5")))
-	title.add_child(text_label("自定义起牌 / 计分 + 可选房规 · 本地人机",13,Color("93b8b9")))
-	header_row.add_child(_styled_button("第一 / 第三人称 V",toggle_view))
-	header_row.add_child(_styled_button("俯视 T",toggle_top_down))
-	header_row.add_child(_styled_button("菜单 Esc",_open_pause))
-	var info := PanelContainer.new()
-	info.position=Vector2(24,125)
-	info.custom_minimum_size=Vector2(300,0)
-	info.add_theme_stylebox_override("panel",style(Color("112d36"),14,Color("355661")))
-	hud.add_child(info)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation",9)
-	info.add_child(col)
-	turn_label=text_label("",23,Color("f0e9ca")); col.add_child(turn_label)
-	color_indicator=text_label("",18,Color.WHITE);col.add_child(color_indicator)
-	detail_label=text_label("",16,Color("d4e2db")); col.add_child(detail_label)
-	roster=VBoxContainer.new(); roster.add_theme_constant_override("separation",7);col.add_child(roster)
-	var help := text_label("亮边为可出牌 / 可抢牌\n点击自己的牌直接出牌\nD 摸牌 · Tab 收起手牌\n右键转头 · R 视角复位",13,Color("86a9a8"));col.add_child(help)
-	var bottom := VBoxContainer.new()
-	bottom.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	bottom.offset_top=490; bottom.offset_left=24; bottom.offset_right=-24
-	bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	hud.add_child(bottom)
-	event_label=text_label("",18,Color("fff2c5"));event_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	event_label.add_theme_color_override("font_shadow_color",Color("102129"));event_label.add_theme_constant_override("shadow_offset_x",2);event_label.add_theme_constant_override("shadow_offset_y",2)
-	event_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	bottom.add_child(event_label)
-	action_row=HBoxContainer.new();action_row.alignment=BoxContainer.ALIGNMENT_CENTER;action_row.add_theme_constant_override("separation",8)
-	bottom.add_child(action_row)
-	draw_action=_styled_button("摸一张 D",_human_draw,true);action_row.add_child(draw_action)
-	pass_action=_styled_button("保留 / 结束回合",_human_pass);action_row.add_child(pass_action)
-	jump_check=CheckBox.new();jump_check.text="本次抢牌";jump_check.add_theme_font_size_override("font_size",16);jump_check.tooltip_text="勾选后，同色同数字 / 功能牌替代上一张效果。\n不勾选按正常回合出牌；同色 +2 可正常叠加。";action_row.add_child(jump_check)
-	announce_check=CheckBox.new();announce_check.text="随本次出牌喊 UNO";announce_check.add_theme_font_size_override("font_size",16);action_row.add_child(announce_check)
-	uno_action=_styled_button("喊 UNO!",_human_uno);action_row.add_child(uno_action)
-	catch_action=_styled_button("抓漏喊 UNO",_human_catch);action_row.add_child(catch_action)
-	penalty_action=_styled_button("摸罚牌并跳过",_human_penalty,true);action_row.add_child(penalty_action)
-	accept_action=_styled_button("接受 +4",func():_challenge(false));action_row.add_child(accept_action)
-	challenge_action=_styled_button("质疑 +4",func():_challenge(true));action_row.add_child(challenge_action)
-	get_viewport().size_changed.connect(func(): bottom.offset_top=get_viewport().get_visible_rect().size.y*0.52)
-	bottom.offset_top=get_viewport().get_visible_rect().size.y*0.52
-	modal=ColorRect.new();modal.color=Color(0.025,0.055,0.075,0.92);modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);modal.visible=false;hud.add_child(modal)
-	var center := CenterContainer.new();center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);modal.add_child(center)
-	var panel := PanelContainer.new();panel.custom_minimum_size=Vector2(600,0);panel.add_theme_stylebox_override("panel",style(Color("173944"),20,Color("6a9393")));center.add_child(panel)
-	modal_box=VBoxContainer.new();modal_box.add_theme_constant_override("separation",10);panel.add_child(modal_box)
 
 func _clear_modal() -> void:
 	for child in modal_box.get_children():
@@ -204,10 +136,16 @@ func _refresh_hud() -> void:
 	detail_label.text="当前颜色：%s   %s\n顶牌：%s\n牌堆 %d · 第 %d 局" % [COLOR_NAMES.get(game.active_color,"待选"),"顺时针 ↻" if game.direction==1 else "逆时针 ↺",_card_title(top),game.draw_pile.size(),round_count]
 	color_indicator.text="● %s色" % COLOR_NAMES.get(game.active_color,"待选")
 	color_indicator.add_theme_color_override("font_color",COLOR_INKS.get(game.active_color,Color.WHITE))
-	for c in roster.get_children():c.free()
-	for i in players.size():
-		var line: String="%s %s  ·  %d 张" % ["▶" if i==game.current_player else "  ",players[i],game.hands[i].size()]
-		roster.add_child(text_label(line,16,Color("ffe5a0") if i==game.current_player else Color("91b4b5")))
+	while roster.get_child_count() > players.size():
+		var last: Node = roster.get_child(-1)
+		roster.remove_child(last)
+		last.queue_free()
+	while roster.get_child_count() < players.size():
+		roster.add_child(preload("res://scenes/hand_count.tscn").instantiate())
+	for i: int in players.size():
+		var row: Label = roster.get_child(i)
+		row.text = "{turn} {player} · {cards} 张".format({"turn": "▶" if i == game.current_player else "", "player": players[i], "cards": game.hands[i].size()})
+		row.modulate = Color("ffe5a0") if i == game.current_player else Color("91b4b5")
 	event_label.text=last_message
 	var locked: bool=paused or choosing or not flights.is_empty()
 	draw_action.disabled=locked or not yours or game.phase not in ["playing","stacking","pending_effect"]
@@ -348,8 +286,8 @@ func _open_pause() -> void:
 		check.add_theme_font_size_override("font_size",15)
 		option_checks[key]=check;modal_box.add_child(check)
 	var navigation:=HBoxContainer.new();modal_box.add_child(navigation)
-	navigation.add_child(_styled_button("返回玩法大厅",func():get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")))
-	navigation.add_child(_styled_button("打开通用模板演示",func():get_tree().change_scene_to_file("res://scenes/table_demo.tscn")))
+	navigation.add_child(_styled_button("返回玩法大厅",_open_card_lobby))
+	navigation.add_child(_styled_button("打开通用模板演示",_open_table_demo))
 	rules_label=text_label("本局：%s\n抢牌截止下一次实际出牌 / 摸牌，房主按到达顺序判定。\n同色、数字 / 符号匹配；两人反转等同跳过。\n剩一张喊 UNO；漏喊可被抓，罚两张。\n叠加开启时不质疑 +4；关闭时保留经典质疑。\n起始牌不触发功能；万能牌由1号先选色，1号先行。\n剩牌：数字面值 / 功能10 / 换色20 / +4为40。\n每局按剩牌分由低到高排名，同分并列，不累计。" % _option_summary(),15,Color("b9ceca"));modal_box.add_child(rules_label)
 
 func _update_hand_limit(_index: int) -> void:
@@ -490,3 +428,14 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled();return
 	if paused or choosing:return
 	super._input(event)
+
+func _open_card_lobby() -> void:
+	get_tree().change_scene_to_file("res://scenes/card_lobby.tscn")
+
+func _open_table_demo() -> void:
+	get_tree().change_scene_to_file("res://scenes/table_demo.tscn")
+
+func _toggle_details(expanded: bool) -> void:
+	detail_label.visible = expanded
+	roster.visible = expanded
+	%HelpText.visible = expanded
