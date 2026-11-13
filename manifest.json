@@ -1,32 +1,7 @@
 {
-  "manifest_version": 2,
-  "core_api_major": 6,
-  "package_version": "1.0.4",
-  "id": "gp_cards",
   "name": "纸牌会客厅",
   "kind": "minigame",
-  "supported_systems": ["windows"],
-  "introduction": "上游 3D 卡牌玩法，等待派对座次与私密手牌适配。",
-  "entry": "party_round.tscn",
-  "player_counts": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8
-  ],
-  "playable": false,
-  "adapters": [],
-  "localization": {
-    "supported_locales": [
-      "zh_Hans"
-    ],
-    "fallback_locale": "zh_Hans",
-    "translations": {
-      "zh_Hans": "i18n/zh_Hans.po"
-    }
-  }
+  "package_version": "0.0.1",
+  "framework_version": "0.0.1",
+  "remark": ""
 }
