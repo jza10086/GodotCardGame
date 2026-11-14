@@ -96,13 +96,9 @@ UNO 宣告、剩牌计分、回收、视角和对手手牌隐私在房规模式�
 
 通用宿主核心 API：`apply_state(player_ids, hands, deck_cards, discard_cards, texture_provider, animated)` 原子校验快照、同步稳定 ID 的原卡节点；`card_requested(id)` / `draw_requested` 只报告意图，由外部规则决定合法性。`set_interaction_blocked()` 仅锁规则操作，不禁用相机；`menu_open` 独立锁模态输入。`card_node(id)` / `player_hand(index)` / `discard_count()` 供宿主查询。牌堆数组最后一张为顶牌。卡牌视觉隐藏仅是本地表现，不是联机保密协议。
 
-## 测试
+## 验证
 
-```sh
-GODOT=/absolute/path/to/Godot_v4.7.2-stable_linux.x86_64 tools/test_all.sh
-```
-
-受限运行环境可将 XDG_DATA_HOME / XDG_CONFIG_HOME / XDG_CACHE_HOME 设为可写目录。测试串行执行，包含原模板四组、通用规则宿主、规则模型、房规的全部 16 种组合、游戏整合 / 设置回归和两个场景烟测。运行日志位于忽略的 `tests/results/`。验证记录见 `UNO_TEST_REPORT.md`；旧模板报告保留于 `TEST_REPORT.md`。
+最近记录与未完成验收见 [gp_cards 开发记录](gp_cards_development.md)。按本次改动选取必要检查；旧测试命令不作为当前入口。
 
 ## 原模板使用说明
 
@@ -342,3 +338,9 @@ $GODOT --path . res://scenes/bluff_game.tscn -- --bluff-demo
 ```
 
 该参数开启 4 人固定洗牌种子 42 的测试局，仍需点击交接确认，不会自动泄露任何玩家手牌。
+
+## 包内开发文档
+
+未带 `res://` 的源码路径以本包根目录为基准。
+
+- [M23 纸牌会客厅原型　B，正式接入另立任务](gp_cards_development.md)
