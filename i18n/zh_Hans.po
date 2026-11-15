@@ -9,3 +9,6 @@ msgstr "上游 3D 卡牌玩法，等待派对座次与私密手牌适配。"
 
 msgid "纸牌会客厅"
 msgstr "纸牌会客厅"
+
+msgid "package.name"
+msgstr "纸牌会客厅"

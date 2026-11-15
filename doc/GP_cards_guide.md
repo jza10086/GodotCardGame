@@ -98,7 +98,7 @@ UNO 宣告、剩牌计分、回收、视角和对手手牌隐私在房规模式�
 
 ## 验证
 
-最近记录与未完成验收见 [gp_cards 开发记录](gp_cards_development.md)。按本次改动选取必要检查；旧测试命令不作为当前入口。
+最近记录与未完成验收见 [GP_cards 开发记录](GP_cards_development.md)。按本次改动选取必要检查；旧测试命令不作为当前入口。
 
 ## 原模板使用说明
 
@@ -343,4 +343,4 @@ $GODOT --path . res://scenes/bluff_game.tscn -- --bluff-demo
 
 未带 `res://` 的源码路径以本包根目录为基准。
 
-- [M23 纸牌会客厅原型　B，正式接入另立任务](gp_cards_development.md)
+- [M23 纸牌会客厅原型　B，正式接入另立任务](GP_cards_development.md)
