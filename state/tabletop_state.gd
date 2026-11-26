@@ -7,6 +7,7 @@ const CARD: StringName = &"card"
 const DECK: StringName = &"deck"
 # The felt apothem is 12; leave room for a rotated card at the rail.
 const PLAY_APOTHEM: float = 10.95
+const MERGE_RADIUS: float = 0.93
 
 var cards: Dictionary[int, Dictionary] = {}
 var table_cards: Dictionary[int, Dictionary] = {}
@@ -39,6 +40,12 @@ func spawn_preset(preset_id: StringName, pos: Vector2, rng: RandomNumberGenerato
 		return _reject("Invalid preset or table position.")
 	if replace_table:
 		_clear()
+	# Public physical IDs must have no fixed correspondence to catalog order.
+	for i: int in range(faces.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var face: StringName = faces[i]
+		faces[i] = faces[j]
+		faces[j] = face
 	var ids: Array[int] = []
 	for face_id: StringName in faces:
 		var uid: int = _next_card_uid
@@ -84,6 +91,8 @@ func release_all_locks_for(player_id: String) -> Dictionary:
 		if table_decks[uid].locked_by == player_id:
 			table_decks[uid].locked_by = ""
 			deck_ids.append(uid)
+	if card_ids.is_empty() and deck_ids.is_empty():
+		return {"ok": true, "error": "", "event": {}}
 	return _commit(&"release_all_locks", card_ids, deck_ids)
 
 
@@ -248,6 +257,10 @@ func can_player_see_face(viewer_id: String, card_uid: int) -> bool:
 	return hands.has(viewer_id) and card_uid in hands[viewer_id]
 
 
+func piece_at(kind: StringName, uid: int) -> Dictionary:
+	return _row(kind, uid)
+
+
 func build_snapshot_for(viewer_id: String) -> Dictionary:
 	var card_rows: Dictionary = {}
 	var deck_rows: Dictionary = {}
@@ -327,11 +340,13 @@ func _commit(type: StringName, card_ids: Array[int], deck_ids: Array[int],
 		"decks": {}, "removed_cards": [], "removed_decks": [], "hands": {}}
 	for uid: int in card_ids:
 		if table_cards.has(uid):
+			table_cards[uid]["rev"] = revision
 			event.cards[uid] = _project_table_card(uid)
 		else:
 			event.removed_cards.append(uid)
 	for uid: int in deck_ids:
 		if table_decks.has(uid):
+			table_decks[uid]["rev"] = revision
 			event.decks[uid] = _project_table_deck(uid)
 		else:
 			event.removed_decks.append(uid)

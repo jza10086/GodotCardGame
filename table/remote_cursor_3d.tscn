@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="remote_cursor_3d.gd" id="cursor"]
+[ext_resource type="FontFile" path="res://games/assets/GP_default_ui/fonts/NotoSansSC-UI.otf" id="font"]
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+inner_radius = 0.27
+outer_radius = 0.32
+rings = 32
+ring_segments = 8
+
+[sub_resource type="SphereMesh" id="DotMesh"]
+radius = 0.068
+height = 0.052
+radial_segments = 16
+rings = 6
+
+[sub_resource type="StandardMaterial3D" id="RingMaterial"]
+resource_local_to_scene = true
+transparency = 1
+shading_mode = 0
+emission_enabled = true
+albedo_color = Color(1, 1, 1, 0)
+
+[sub_resource type="StandardMaterial3D" id="DotMaterial"]
+resource_local_to_scene = true
+transparency = 1
+shading_mode = 0
+emission_enabled = true
+albedo_color = Color(1, 1, 1, 0)
+
+[node name="RemoteCursor3D" type="Node3D"]
+visible = false
+script = ExtResource("cursor")
+
+[node name="Ring" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+cast_shadow = 0
+material_override = SubResource("RingMaterial")
+mesh = SubResource("RingMesh")
+
+[node name="Dot" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.015, 0)
+cast_shadow = 0
+material_override = SubResource("DotMaterial")
+mesh = SubResource("DotMesh")
+
+[node name="Nickname" type="Label3D" parent="."]
+unique_name_in_owner = true
+position = Vector3(0, 0.64, 0)
+pixel_size = 0.013
+billboard = 1
+font = ExtResource("font")
+font_size = 28
+outline_size = 7

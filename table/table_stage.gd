@@ -3,6 +3,8 @@ extends Node3D
 ## The view consumes projected rows and sends player intents without a reference to host state.
 signal action_requested(action: Dictionary)
 signal face_preview_changed(texture: Texture2D)
+signal cursor_sampled(position: Vector2, holding: bool)
+signal drag_sampled(sample: Dictionary)
 
 const CameraRig: GDScript = preload("res://games/minigame/GP_cards/table/table_camera_rig.gd")
 const Card: GDScript = preload("res://games/minigame/GP_cards/cards/card_entity.gd")
@@ -10,13 +12,14 @@ const Deck: GDScript = preload("res://games/minigame/GP_cards/cards/deck_entity.
 const Catalog: GDScript = preload("res://games/minigame/GP_cards/cards/deck_catalog.gd")
 const Hand: GDScript = preload("res://games/minigame/GP_cards/cards/floating_hand_3d.gd")
 const ContextMenu: GDScript = preload("res://games/minigame/GP_cards/ui/context_menu.gd")
+const RemoteCursor: GDScript = preload("res://games/minigame/GP_cards/table/remote_cursor_3d.gd")
 const CARD_SCENE: PackedScene = preload("res://games/minigame/GP_cards/cards/card_entity.tscn")
 const DECK_SCENE: PackedScene = preload("res://games/minigame/GP_cards/cards/deck_entity.tscn")
+const CURSOR_SCENE: PackedScene = preload("res://games/minigame/GP_cards/table/remote_cursor_3d.tscn")
 const SEAT_COUNT: int = 8
 const TABLE_COLLISION_MASK: int = 1
 const PIECE_COLLISION_MASK: int = 2
 const HOLD_MSEC: int = 280
-const MERGE_RADIUS: float = 0.93
 const NUMBER_KEYS: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
 
 @export var world: WorldEnvironment
@@ -26,17 +29,24 @@ var _catalog: Catalog = Catalog.new()
 var _cards: Dictionary[int, Card] = {}
 var _decks: Dictionary[int, Deck] = {}
 var _seat_by_player: Dictionary[String, int] = {}
+var _cursors: Dictionary[String, RemoteCursor] = {}
+var _colors: Dictionary[String, Color] = {}
+var _ahead_drag: Dictionary[String, Dictionary] = {}
 var _last_rev: int = -1
 var _local_id: String
 var _input_context: PartyInput
 var _controls_active: bool = false
 var _pointer: Vector2
+var _last_cursor_point: Vector2
+var _has_cursor_point: bool = false
 var _press_point: Vector2
 var _press_msec: int
 var _press_whole: bool = false
+var _left_down: bool = false
 var _pending_piece: Dictionary = {}
 var _hand_drag: int = 0
 var _awaiting_hold: bool = false
+var _hold_request: Dictionary = {}
 var _drop_when_held: bool = false
 var _queued_release_at: Vector2
 var _cancel_when_held: bool = false
@@ -54,6 +64,7 @@ var _seat_back: StringName = &"poker"
 @onready var _camera: Camera3D = %Camera3D
 @onready var _cards_root: Node3D = %CardsRoot
 @onready var _decks_root: Node3D = %DecksRoot
+@onready var _cursors_root: Node3D = %CursorsRoot
 @onready var _hand: Hand = %FloatingHandAnchor
 @onready var _drop_marker: MeshInstance3D = %DropMarker
 @onready var _menu: ContextMenu = %ContextMenu
@@ -71,6 +82,7 @@ func seat_players(players: Array[Dictionary], local_player_index: int, input_con
 	for seat: Node3D in _seats.get_children():
 		seat.hide()
 	_seat_by_player.clear()
+	_colors.clear()
 	_local_id = ""
 	var seat_yaw: float = 0.0
 	for i: int in players.size():
@@ -85,20 +97,51 @@ func seat_players(players: Array[Dictionary], local_player_index: int, input_con
 		material.emission = color
 		seat.show()
 		_seat_by_player[players[i].player_id] = seat_idx
+		_colors[players[i].player_id] = color
 		if i == local_player_index:
 			_local_id = players[i].player_id
 			seat_yaw = seat.rotation.y
 	_camera_rig.configure(input_context, seat_yaw)
 
 
+func update_remote_cursor(player_id: String, point: Vector2, holding: bool) -> void:
+	if not _cursors.has(player_id):
+		var cursor: RemoteCursor = CURSOR_SCENE.instantiate()
+		_cursors_root.add_child(cursor)
+		var seat: Node3D = _seats.get_child(_seat_by_player[player_id])
+		var nickname: Label3D = seat.get_node("Nickname")
+		cursor.configure(nickname.text, _colors[player_id])
+		_cursors[player_id] = cursor
+	_cursors[player_id].aim_at(point, holding)
+
+
+func hide_remote_cursor(player_id: String) -> void:
+	_ahead_drag.erase(player_id)
+	if _cursors.has(player_id):
+		_cursors[player_id].expire()
+
+
+func update_remote_drag(player_id: String, sample: Dictionary) -> void:
+	if sample.rev > _last_rev:
+		# A motion sample can overtake the reliable lock event on the other channel.
+		_ahead_drag[player_id] = sample
+		return
+	var piece: Card = _piece(sample.kind, sample.uid)
+	if piece != null and piece.locked_by == player_id and piece.piece_rev == sample.rev:
+		piece.drag_remotely(Vector3(sample.x, sample.y, sample.z), sample.yaw)
+
+
 func set_controls_active(active: bool) -> void:
 	_controls_active = active
 	_camera_rig.set_controls_active(active)
 	if not active:
+		_left_down = false
 		_cancel_drag()
 		_menu.hide()
 		_alt = false
 		_clear_feedback()
+		for player_id: String in _cursors:
+			_cursors[player_id].expire()
 
 
 func can_use_controls() -> bool:
@@ -138,13 +181,15 @@ func apply_snapshot(snapshot: Dictionary) -> void:
 		_upsert_piece(TabletopState.CARD, uid, snapshot.table_cards[uid])
 	for uid: int in snapshot.table_decks:
 		_upsert_piece(TabletopState.DECK, uid, snapshot.table_decks[uid])
+	if not snapshot.table_decks.is_empty():
+		_seat_back = snapshot.table_decks.values()[0].top_card.deck_type
 	var origins: Dictionary[int, Vector3] = {}
 	_hand.apply_hand(snapshot.hand, _catalog, origins)
 	for player_id: String in snapshot.hand_counts:
 		_set_seat_hand_count(player_id, snapshot.hand_counts[player_id])
 
 
-func apply_event(event: Dictionary) -> void:
+func apply_event(event: Dictionary, confirms_local_action: bool = true) -> void:
 	if event.rev <= _last_rev:
 		return
 	_last_rev = event.rev
@@ -176,11 +221,13 @@ func apply_event(event: Dictionary) -> void:
 		_upsert_piece(TabletopState.CARD, uid, row)
 		if fresh and event.type == &"draw_top" and row.locked_by == _local_id and deck_origin != null:
 			_cards[uid].global_position = deck_origin
-		_accept_hold(event.type, TabletopState.CARD, uid, row)
+		if confirms_local_action:
+			_accept_hold(event.type, TabletopState.CARD, uid, row)
 	for uid: int in event.decks:
 		var row: Dictionary = event.decks[uid]
 		_upsert_piece(TabletopState.DECK, uid, row)
-		_accept_hold(event.type, TabletopState.DECK, uid, row)
+		if confirms_local_action:
+			_accept_hold(event.type, TabletopState.DECK, uid, row)
 		if event.type == &"shuffle":
 			_decks[uid].play_shuffle()
 	for card: Card in retiring:
@@ -200,6 +247,11 @@ func apply_event(event: Dictionary) -> void:
 			_cancel_drag.call_deferred()
 		elif _drop_when_held:
 			_drop.call_deferred()
+	for player_id: String in _ahead_drag.keys():
+		var sample: Dictionary = _ahead_drag[player_id]
+		if sample.rev <= _last_rev:
+			_ahead_drag.erase(player_id)
+			update_remote_drag(player_id, sample)
 	# Alt must clear in the same commit as a revealed card is hidden.
 	_update_feedback()
 
@@ -208,18 +260,23 @@ func _accept_hold(type: StringName, kind: StringName, uid: int, row: Dictionary)
 	if not _awaiting_hold or row.locked_by != _local_id or type not in [&"grab", &"draw_top", &"play_from_hand"]:
 		return
 	_awaiting_hold = false
+	_hold_request.clear()
 	_held_kind = kind
 	_held_uid = uid
 	_drag_pos = row.pos
 	_piece(kind, uid).set_dragging(true)
+	if not _left_down and not _drop_when_held:
+		_drop_when_held = true
+		_queued_release_at = _pointer
 
 
 func reject_action(action: Dictionary) -> void:
-	if action.type in [&"grab", &"draw_top", &"play_from_hand"]:
+	if _awaiting_hold and action == _hold_request:
 		_awaiting_hold = false
+		_hold_request.clear()
 		_drop_when_held = false
 		_cancel_when_held = false
-	elif action.type in [&"drop_hand", &"drop_merge", &"drop_table"]:
+	elif _awaiting_drop and action.type in [&"drop_hand", &"drop_merge", &"drop_table"] and action.uid == _held_uid:
 		_cancel_drag()
 
 
@@ -238,6 +295,9 @@ func _upsert_piece(kind: StringName, uid: int, row: Dictionary) -> void:
 			_place_piece(deck, _decks_root, kind, uid)
 		var top: Dictionary = row.top_card
 		_decks[uid].apply_deck(row, _projected_texture(top), _catalog.get_back_texture(top.deck_type), fresh)
+	var piece: Card = _piece(kind, uid)
+	var locked_by_other: bool = not row.locked_by.is_empty() and row.locked_by != _local_id
+	piece.set_remote_lock(locked_by_other, _colors.get(row.locked_by, Color.WHITE))
 
 
 func _place_piece(card: Card, root: Node3D, kind: StringName, uid: int) -> void:
@@ -264,6 +324,7 @@ func _reset_pieces() -> void:
 	_hand_drag = 0
 	_hand.set_drag_preview(0, _pointer)
 	_awaiting_hold = false
+	_hold_request.clear()
 	_drop_when_held = false
 	_cancel_when_held = false
 	_menu.hide()
@@ -345,8 +406,22 @@ func _physics_process(_delta: float) -> void:
 			_menu.hide()
 			_alt = false
 			_clear_feedback()
+			if _has_cursor_point:
+				cursor_sampled.emit(_last_cursor_point, false)
 		return
 	_update_feedback()
+	if cursor_sampled.has_connections():
+		var hit: Dictionary = pick_table(_pointer)
+		if not hit.is_empty():
+			var point: Vector3 = hit.position
+			_last_cursor_point = Vector2(point.x, point.z)
+			_has_cursor_point = true
+		if _has_cursor_point:
+			cursor_sampled.emit(_last_cursor_point, _held_uid != 0 and not _awaiting_drop)
+		if _held_uid != 0 and not _awaiting_drop and not _drop_when_held and not _cancel_when_held:
+			var piece: Card = _piece(_held_kind, _held_uid)
+			drag_sampled.emit({"rev": piece.piece_rev, "kind": _held_kind, "uid": _held_uid,
+				"x": _drag_pos.x, "y": Card.DRAG_HEIGHT, "z": _drag_pos.y, "yaw": rad_to_deg(piece.target_yaw)})
 
 
 func _can_interact() -> bool:
@@ -358,6 +433,8 @@ func _input(event: InputEvent) -> void:
 		_pointer = event.position
 	if not _can_interact():
 		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_left_down = false
 	if event is InputEventKey and (event.physical_keycode == KEY_ALT or event.keycode == KEY_ALT):
 		_alt = event.pressed
 		_update_feedback()
@@ -376,11 +453,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		_press_point = event.position
+		_left_down = true
 		_press_msec = Time.get_ticks_msec()
 		_press_whole = event.shift_pressed
 		_hand_drag = _hand.card_at(event.position)
 		if _hand_drag == 0:
 			_pending_piece = _pick_piece(event.position)
+			if not _pending_piece.is_empty() and not _piece(_pending_piece.kind, _pending_piece.uid).locked_by.is_empty():
+				_pending_piece.clear()
 		if _hand_drag != 0 or not _pending_piece.is_empty():
 			get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo and not event.is_command_or_control_pressed():
@@ -388,7 +468,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _drag_motion(event: InputEventMouseMotion) -> void:
-	if _awaiting_hold or _awaiting_drop:
+	if _awaiting_hold:
+		if _left_down and not event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_left_down = false
+			_drop()
+		return
+	if _awaiting_drop:
 		return
 	if not event.button_mask & MOUSE_BUTTON_MASK_LEFT:
 		_cancel_drag()
@@ -405,20 +490,24 @@ func _drag_motion(event: InputEventMouseMotion) -> void:
 			var uid: int = _hand_drag
 			_hand_drag = 0
 			_hand.set_drag_preview(0, _pointer)
-			_awaiting_hold = true
-			action_requested.emit({"type": &"play_from_hand", "uid": uid,
+			_request_hold({"type": &"play_from_hand", "uid": uid,
 				"pos": _table_position(_pointer, Vector2.ZERO), "yaw": _camera_rig.rotation_degrees.y})
 	elif not _pending_piece.is_empty():
 		var picked: Dictionary = _pending_piece
 		_pending_piece = {}
-		_awaiting_hold = true
 		var whole: bool = _press_whole or event.shift_pressed or Time.get_ticks_msec() - _press_msec >= HOLD_MSEC
 		if picked.kind == TabletopState.DECK and not whole:
-			action_requested.emit({"type": &"draw_top", "deck_uid": picked.uid, "auto_grab": true})
+			_request_hold({"type": &"draw_top", "deck_uid": picked.uid, "auto_grab": true})
 		else:
-			action_requested.emit({"type": &"grab", "kind": picked.kind, "uid": picked.uid})
+			_request_hold({"type": &"grab", "kind": picked.kind, "uid": picked.uid})
 	_move_held(_pointer)
 	_update_feedback()
+
+
+func _request_hold(action: Dictionary) -> void:
+	_awaiting_hold = true
+	_hold_request = action.duplicate()
+	action_requested.emit(action)
 
 
 func _move_held(at: Vector2) -> void:
@@ -450,7 +539,7 @@ func _drop() -> void:
 		action_requested.emit({"type": &"drop_hand", "uid": _held_uid, "index": _hand.insert_index(at)})
 	elif target != null:
 		action_requested.emit({"type": &"drop_merge", "kind": _held_kind, "uid": _held_uid,
-			"dst_kind": target.get_meta(&"kind"), "dst_uid": target.get_meta(&"uid")})
+			"dst_kind": target.get_meta(&"kind"), "dst_uid": target.get_meta(&"uid"), "pos": _drag_pos})
 	else:
 		action_requested.emit({"type": &"drop_table", "kind": _held_kind, "uid": _held_uid,
 			"pos": _drag_pos, "yaw": rad_to_deg(source.target_yaw)})
@@ -467,6 +556,7 @@ func _cancel_drag() -> void:
 	_cancel_when_held = false
 	if _held_uid != 0:
 		var release: Dictionary = {"type": &"release_lock", "kind": _held_kind, "uid": _held_uid}
+		_piece(_held_kind, _held_uid).restore_table_pose()
 		_forget_hold()
 		action_requested.emit(release)
 
@@ -486,7 +576,7 @@ func _merge_target() -> Card:
 	if _held_uid == 0 or not _drop_marker.visible:
 		return null
 	var closest: Card = null
-	var nearest: float = MERGE_RADIUS * MERGE_RADIUS
+	var nearest: float = TabletopState.MERGE_RADIUS * TabletopState.MERGE_RADIUS
 	for pieces: Dictionary in [_cards, _decks]:
 		for candidate: Card in pieces.values():
 			if not candidate.locked_by.is_empty():
@@ -571,7 +661,7 @@ func _shortcut(event: InputEventKey) -> void:
 
 
 func _open_context_menu(at: Vector2) -> void:
-	if not _can_interact() or _held_uid != 0 or _hand.card_at(at) != 0:
+	if not _can_interact() or _held_uid != 0 or _awaiting_hold or _hand.card_at(at) != 0:
 		return
 	var picked: Dictionary = _pick_piece(at)
 	if picked.is_empty():
@@ -588,6 +678,7 @@ func _context_action(action: Dictionary) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_node_ready():
+		_left_down = false
 		_cancel_drag()
 		_alt = false
 		_clear_feedback()

@@ -5,6 +5,7 @@ const WIDTH: float = 1.15
 const LENGTH: float = 1.61
 const PAPER: float = 0.025
 const CORNER: float = 0.075
+const DRAG_HEIGHT: float = 0.69
 const EDGE_SHADER: Shader = preload("res://games/minigame/GP_cards/cards/paper_edge.gdshader")
 
 static var _paper_mesh: ArrayMesh
@@ -15,6 +16,7 @@ var locked_by: String = ""
 var target_position: Vector3
 var target_yaw: float = 0.0
 var y_order: int = 0
+var piece_rev: int = 0
 var table_position: Vector2
 
 var _face: StandardMaterial3D = StandardMaterial3D.new()
@@ -26,6 +28,9 @@ var _face_up: bool = true
 var _flipped: bool = false
 var _target_flip: float = 0.0
 var _dragging: bool = false
+var _remote_lock: bool = false
+var _owner_color: Color
+var _table_yaw: float
 var _flight: Tween
 
 @onready var _visual: Node3D = %Visual
@@ -49,11 +54,15 @@ func _ready() -> void:
 
 
 func apply_card(row: Dictionary, front: Texture2D, back: Texture2D, fresh: bool) -> void:
+	var keeps_remote_pose: bool = _remote_lock and locked_by == row.locked_by
 	table_position = row.pos
 	locked_by = row.locked_by
-	target_yaw = deg_to_rad(row.yaw_deg)
+	_table_yaw = deg_to_rad(row.yaw_deg)
+	target_yaw = _table_yaw
 	y_order = row.y_order
-	target_position = Vector3(table_position.x, 0.0, table_position.y)
+	piece_rev = row.rev
+	if not keeps_remote_pose:
+		restore_table_pose()
 	set_card_sides(front, back, row.face_up, fresh)
 	if fresh:
 		_snap_to_table()
@@ -90,9 +99,32 @@ func set_seat_display() -> void:
 
 
 func set_highlight(active: bool, merge: bool = false) -> void:
-	_rim.visible = active
+	_rim.visible = active or _remote_lock
 	var material: StandardMaterial3D = _rim.material_override
-	material.albedo_color = Color("#78f0b6") if merge else Color("#ffe39b")
+	if _remote_lock:
+		material.albedo_color = _owner_color.lerp(Color.WHITE, 0.35)
+	else:
+		material.albedo_color = Color("#78f0b6") if merge else Color("#ffe39b")
+
+
+func set_remote_lock(active: bool, color: Color) -> void:
+	if _remote_lock == active:
+		return
+	_remote_lock = active
+	_owner_color = color
+	if active:
+		target_position.y = DRAG_HEIGHT
+	set_highlight(false)
+
+
+func drag_remotely(pose: Vector3, yaw_deg: float) -> void:
+	target_position = pose
+	target_yaw = deg_to_rad(yaw_deg)
+
+
+func restore_table_pose() -> void:
+	target_position = Vector3(table_position.x, 0.0, table_position.y)
+	target_yaw = _table_yaw
 
 
 func set_dragging(active: bool) -> void:
@@ -153,13 +185,14 @@ func _process(delta: float) -> void:
 		_flipped = false
 	var flip_lift: float = absf(sin(_visual.rotation.x)) * LENGTH * 0.43 if _flipped else 0.0
 	var layers: float = float(y_order % 1000) * 0.00007
-	var hover_height: float = 0.69 if _dragging else 0.0
+	var hover_height: float = DRAG_HEIGHT if _dragging else 0.0
 	var destination: Vector3 = target_position + Vector3.UP * (_height * 0.5 + 0.009 + layers + flip_lift + hover_height)
 	var planar_error: Vector3 = destination - position
 	position = position.lerp(destination, weight)
 	rotation.y = lerp_angle(rotation.y, target_yaw, weight)
-	var tilt_z: float = clampf(-planar_error.dot(basis.x) * 0.19, -0.19, 0.19) if _dragging else 0.0
-	var tilt_x: float = clampf(planar_error.dot(basis.z) * 0.19, -0.19, 0.19) if _dragging else 0.0
+	var in_air: bool = _dragging or _remote_lock
+	var tilt_z: float = clampf(-planar_error.dot(basis.x) * 0.19, -0.19, 0.19) if in_air else 0.0
+	var tilt_x: float = clampf(planar_error.dot(basis.z) * 0.19, -0.19, 0.19) if in_air else 0.0
 	_slab.rotation.x = lerpf(_slab.rotation.x, tilt_x, weight)
 	_slab.rotation.z = lerpf(_slab.rotation.z, tilt_z, weight)
 
