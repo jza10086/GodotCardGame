@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://games/protocols/GP_default_protocol/briefing/briefing_page.tscn" id="briefing"]
+
+[node name="Briefing" instance=ExtResource("briefing")]
+
+[node name="Title" parent="View/Layout/Center/Content" index="0"]
+text = "纸牌会客厅"
+
+[node name="InformationPanel" parent="View/Layout/Center/Content/Columns/RightColumn" index="1"]
+visible = false
+
+[editable path="View"]

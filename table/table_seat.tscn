@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="FontFile" path="res://games/assets/GP_default_ui/fonts/NotoSansSC-UI.otf" id="font"]
+
+[sub_resource type="StandardMaterial3D" id="plate"]
+albedo_color = Color(0.075, 0.048, 0.035, 1)
+roughness = 0.59
+
+[sub_resource type="BoxMesh" id="plate_mesh"]
+material = SubResource("plate")
+size = Vector3(2.75, 0.08, 0.31)
+
+[sub_resource type="StandardMaterial3D" id="strip"]
+resource_local_to_scene = true
+roughness = 0.73
+emission_enabled = true
+emission_energy_multiplier = 0.3
+
+[sub_resource type="BoxMesh" id="strip_mesh"]
+size = Vector3(2.56, 0.042, 0.115)
+
+[node name="TableSeat" type="Node3D"]
+visible = false
+
+[node name="Plate" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.04, 0)
+mesh = SubResource("plate_mesh")
+
+[node name="ColorStrip" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.09, 0)
+material_override = SubResource("strip")
+mesh = SubResource("strip_mesh")
+
+[node name="Nickname" type="Label3D" parent="."]
+position = Vector3(0, 1.82, 0.48)
+billboard = 1
+pixel_size = 0.0075
+modulate = Color(0.99, 0.95, 0.86, 1)
+outline_modulate = Color(0.035, 0.027, 0.025, 0.95)
+font = ExtResource("font")
+font_size = 72
+outline_size = 12
+width = 640.0
+autowrap_mode = 3
+
+[node name="HandBacksAnchor" type="Node3D" parent="."]
+position = Vector3(0, -0.13, -1.42)
+rotation = Vector3(0, 3.1415927, 0)

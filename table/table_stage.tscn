@@ -1,0 +1,269 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="table_stage.gd" id="stage"]
+[ext_resource type="Script" path="table_camera_rig.gd" id="camera"]
+[ext_resource type="PackedScene" path="table_seat.tscn" id="seat"]
+[ext_resource type="Shader" path="table_surface.gdshader" id="surface"]
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.076, 0.086, 0.095, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.74, 0.82, 0.9, 1)
+ambient_light_energy = 0.48
+tonemap_mode = 2
+
+[sub_resource type="ShaderMaterial" id="DarkWood"]
+shader = ExtResource("surface")
+shader_parameter/base_color = Color(0.14, 0.063, 0.038, 1)
+shader_parameter/grain_color = Color(0.29, 0.138, 0.074, 1)
+
+[sub_resource type="ShaderMaterial" id="Walnut"]
+shader = ExtResource("surface")
+shader_parameter/base_color = Color(0.24, 0.101, 0.056, 1)
+shader_parameter/grain_color = Color(0.47, 0.25, 0.145, 1)
+
+[sub_resource type="ShaderMaterial" id="Felt"]
+shader = ExtResource("surface")
+shader_parameter/base_color = Color(0.057, 0.266, 0.205, 1)
+shader_parameter/grain_color = Color(0.30, 0.49, 0.39, 1)
+shader_parameter/felt = true
+
+[sub_resource type="StandardMaterial3D" id="Brass"]
+albedo_color = Color(0.57, 0.40, 0.211, 1)
+metallic = 0.43
+roughness = 0.47
+
+[sub_resource type="StandardMaterial3D" id="Floor"]
+albedo_color = Color(0.114, 0.132, 0.145, 1)
+roughness = 0.91
+
+[sub_resource type="PlaneMesh" id="FloorMesh"]
+material = SubResource("Floor")
+size = Vector2(160, 160)
+
+[sub_resource type="CylinderMesh" id="FootMesh"]
+material = SubResource("DarkWood")
+top_radius = 3.2688244
+bottom_radius = 3.9507315
+height = 0.36
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="PedestalMesh"]
+material = SubResource("DarkWood")
+top_radius = 2.6626848
+bottom_radius = 3.0739938
+height = 2.24
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="PedestalCollarMesh"]
+material = SubResource("Walnut")
+top_radius = 3.7342531
+bottom_radius = 2.6843327
+height = 0.36
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="ApronMesh"]
+material = SubResource("DarkWood")
+top_radius = 15.0019559
+bottom_radius = 14.5365272
+height = 0.49
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="BeadedEdgeMesh"]
+material = SubResource("Brass")
+top_radius = 15.0560755
+bottom_radius = 15.0452516
+height = 0.062
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="WoodRailMesh"]
+material = SubResource("Walnut")
+top_radius = 14.8287731
+bottom_radius = 15.0560755
+height = 0.212
+radial_segments = 8
+rings = 0
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="CylinderMesh" id="RailTopMesh"]
+material = SubResource("Walnut")
+top_radius = 13.1402413
+bottom_radius = 14.8287731
+height = 0.043
+radial_segments = 8
+rings = 0
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="CylinderMesh" id="RailInnerMesh"]
+material = SubResource("Walnut")
+flip_faces = true
+top_radius = 13.1402413
+bottom_radius = 13.1402413
+height = 0.275
+radial_segments = 8
+rings = 0
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="CylinderMesh" id="FeltLipMesh"]
+material = SubResource("Brass")
+top_radius = 13.0969456
+bottom_radius = 13.0969456
+height = 0.036
+radial_segments = 8
+rings = 0
+
+[sub_resource type="CylinderMesh" id="FeltMesh"]
+material = SubResource("Felt")
+top_radius = 12.9887064
+bottom_radius = 12.9887064
+height = 0.032
+radial_segments = 8
+rings = 0
+
+[sub_resource type="ConvexPolygonShape3D" id="FeltShape"]
+points = PackedVector3Array(4.9705627, 0, 12, 12, 0, 4.9705627, 12, 0, -4.9705627, 4.9705627, 0, -12, -4.9705627, 0, -12, -12, 0, -4.9705627, -12, 0, 4.9705627, -4.9705627, 0, 12, 4.9705627, -0.1, 12, 12, -0.1, 4.9705627, 12, -0.1, -4.9705627, 4.9705627, -0.1, -12, -4.9705627, -0.1, -12, -12, -0.1, -4.9705627, -12, -0.1, 4.9705627, -4.9705627, -0.1, 12)
+
+[node name="TableStage" type="Node3D" node_paths=PackedStringArray("world", "sun")]
+script = ExtResource("stage")
+world = NodePath("WorldEnvironment")
+sun = NodePath("Sun")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-53, -29, 0)
+light_color = Color(1, 0.875, 0.72, 1)
+light_energy = 1.25
+shadow_enabled = true
+directional_shadow_max_distance = 70.0
+
+[node name="Fill" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-37, 143, 0)
+light_color = Color(0.65, 0.79, 1, 1)
+light_energy = 0.38
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+position = Vector3(0, -3.11, 0)
+mesh = SubResource("FloorMesh")
+
+[node name="TableMesh" type="Node3D" parent="."]
+rotation_degrees = Vector3(0, 22.5, 0)
+
+[node name="Foot" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -2.92, 0)
+mesh = SubResource("FootMesh")
+
+[node name="Pedestal" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -1.64, 0)
+mesh = SubResource("PedestalMesh")
+
+[node name="PedestalCollar" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -0.48, 0)
+mesh = SubResource("PedestalCollarMesh")
+
+[node name="Apron" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -0.29, 0)
+mesh = SubResource("ApronMesh")
+
+[node name="BeadedEdge" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -0.048, 0)
+mesh = SubResource("BeadedEdgeMesh")
+
+[node name="WoodRail" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, 0.086, 0)
+mesh = SubResource("WoodRailMesh")
+
+[node name="RailTop" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, 0.2135, 0)
+mesh = SubResource("RailTopMesh")
+
+[node name="RailInner" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, 0.0975, 0)
+mesh = SubResource("RailInnerMesh")
+
+[node name="FeltLip" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -0.023, 0)
+mesh = SubResource("FeltLipMesh")
+
+[node name="Felt" type="MeshInstance3D" parent="TableMesh"]
+position = Vector3(0, -0.016, 0)
+mesh = SubResource("FeltMesh")
+
+[node name="FeltSurface" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FeltSurface"]
+shape = SubResource("FeltShape")
+
+[node name="Seats" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Seat0" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(0, 0.227, 12.87)
+rotation_degrees = Vector3(0, 0, 0)
+
+[node name="Seat1" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(9.100464, 0.227, 9.100464)
+rotation_degrees = Vector3(0, 45, 0)
+
+[node name="Seat2" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(12.87, 0.227, 0)
+rotation_degrees = Vector3(0, 90, 0)
+
+[node name="Seat3" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(9.100464, 0.227, -9.100464)
+rotation_degrees = Vector3(0, 135, 0)
+
+[node name="Seat4" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(0, 0.227, -12.87)
+rotation_degrees = Vector3(0, 180, 0)
+
+[node name="Seat5" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(-9.100464, 0.227, -9.100464)
+rotation_degrees = Vector3(0, 225, 0)
+
+[node name="Seat6" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(-12.87, 0.227, 0)
+rotation_degrees = Vector3(0, 270, 0)
+
+[node name="Seat7" parent="Seats" instance=ExtResource("seat")]
+position = Vector3(-9.100464, 0.227, 9.100464)
+rotation_degrees = Vector3(0, 315, 0)
+
+[node name="CardsRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="DecksRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="CursorsRoot" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="CameraRig" type="Node3D" parent="."]
+unique_name_in_owner = true
+script = ExtResource("camera")
+
+[node name="Pitch" type="Node3D" parent="CameraRig"]
+unique_name_in_owner = true
+rotation_degrees = Vector3(-42, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Pitch"]
+unique_name_in_owner = true
+position = Vector3(0, 0, 34)
+current = true
+fov = 49.0
+far = 125.0
+
+[node name="FloatingHandAnchor" type="Node3D" parent="CameraRig/Pitch/Camera3D"]
+unique_name_in_owner = true
+position = Vector3(0, -0.86, -2.2)

@@ -6,5 +6,9 @@
   "remark": "",
   "supported_languages": [
     "zh-CN"
-  ]
+  ],
+  "dependencies": {
+    "GP_default_protocol": "~0.3.0",
+    "GP_default_ui": "~0.2.0"
+  }
 }
