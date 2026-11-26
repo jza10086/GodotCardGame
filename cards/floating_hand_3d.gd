@@ -21,8 +21,10 @@ func apply_hand(rows: Array, catalog: Catalog, origins: Dictionary[int, Vector3]
 		deal_origin: Variant = null) -> void:
 	_order.clear()
 	for row: Dictionary in rows:
+		_order.append(row.uid)
+	var arrival: int = 0
+	for row: Dictionary in rows:
 		var uid: int = row.uid
-		_order.append(uid)
 		if _cards.has(uid):
 			continue
 		var card: Card = CARD_SCENE.instantiate()
@@ -32,7 +34,8 @@ func apply_hand(rows: Array, catalog: Catalog, origins: Dictionary[int, Vector3]
 			catalog.get_back_texture(row.deck_type), true, true)
 		_cards[uid] = card
 		var origin: Variant = origins.get(uid, deal_origin)
-		_place_new_card(uid, origin)
+		_place_new_card(uid, origin, minf(arrival * 0.013, 0.065))
+		arrival += 1
 	for uid: int in _cards.keys():
 		if uid not in _order:
 			_cards[uid].hide_face()
@@ -44,16 +47,17 @@ func apply_hand(rows: Array, catalog: Catalog, origins: Dictionary[int, Vector3]
 		_hover = 0
 
 
-func _place_new_card(uid: int, origin: Variant) -> void:
+func _place_new_card(uid: int, origin: Variant, delay: float) -> void:
 	var card: Card = _cards[uid]
-	var slot: Vector2 = _slot(_order.size() - 1)
+	var slot: Vector2 = _slot(_order.find(uid))
 	var start: Vector2 = slot + Vector2(0.0, 110.0) * _ui_scale()
 	if origin != null and not _camera.is_position_behind(origin):
 		start = _camera.unproject_position(origin)
 	card.position = to_local(_camera.project_position(start, DEPTH))
 	card.quaternion = Quaternion(Vector3.RIGHT, PI * 0.5)
 	card.scale = Vector3.ONE * _card_scale() * 0.52
-	_flights[uid] = Vector3(start.x, start.y, 0.0)
+	card.visible = delay == 0.0
+	_flights[uid] = Vector3(start.x, start.y, -delay)
 
 
 func is_drop_zone(pointer: Vector2, hand_press_y: float = INF) -> bool:
@@ -134,19 +138,26 @@ func _process(delta: float) -> void:
 		var fan: float = clampf((_slot(i).x - _center_x()) / (560.0 * ui_scale), -1.0, 1.0)
 		var angle: float = 0.0 if raised else -fan * 0.175
 		var target: Quaternion = Quaternion(Vector3.BACK, angle) * Quaternion(Vector3.RIGHT, PI * 0.5)
+		var size: float = scale_factor * (1.18 if raised else 1.0) * depth / DEPTH
 		if _flights.has(uid):
 			var flight: Vector3 = _flights[uid]
-			flight.z = minf(1.0, flight.z + delta * 3.3)
-			var ease_out: float = 1.0 - pow(1.0 - flight.z, 2.0)
-			slot = Vector2(flight.x, flight.y).lerp(slot, ease_out)
-			slot.y -= sin(flight.z * PI) * 94.0 * ui_scale
+			flight.z += delta
 			_flights[uid] = flight
-			if flight.z >= 1.0:
+			if flight.z < 0.0:
+				continue
+			var progress: float = minf(flight.z / 0.30, 1.0)
+			slot = Vector2(flight.x, flight.y).lerp(slot, progress)
+			slot.y -= 4.0 * progress * (1.0 - progress) * 118.0 * ui_scale
+			card.show()
+			card.position = to_local(_camera.project_position(slot, depth))
+			card.quaternion = Quaternion(Vector3.RIGHT, PI * 0.5).slerp(target, progress)
+			card.scale = Vector3.ONE * size * lerpf(0.52, 1.0, progress)
+			if progress == 1.0:
 				_flights.erase(uid)
+			continue
 		var target_position: Vector3 = to_local(_camera.project_position(slot, depth))
 		card.position = card.position.lerp(target_position, weight)
 		card.quaternion = card.quaternion.slerp(target, weight)
-		var size: float = scale_factor * (1.18 if raised else 1.0) * depth / DEPTH
 		card.scale = card.scale.lerp(Vector3.ONE * size, weight)
 
 

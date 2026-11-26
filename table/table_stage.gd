@@ -20,6 +20,7 @@ const SEAT_COUNT: int = 8
 const TABLE_COLLISION_MASK: int = 1
 const PIECE_COLLISION_MASK: int = 2
 const HOLD_MSEC: int = 280
+const MAX_SEAT_BACKS: int = 12
 const NUMBER_KEYS: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
 
 @export var world: WorldEnvironment
@@ -29,6 +30,7 @@ var _catalog: Catalog = Catalog.new()
 var _cards: Dictionary[int, Card] = {}
 var _decks: Dictionary[int, Deck] = {}
 var _seat_by_player: Dictionary[String, int] = {}
+var _seat_hand_counts: Dictionary[String, int] = {}
 var _cursors: Dictionary[String, RemoteCursor] = {}
 var _colors: Dictionary[String, Color] = {}
 var _ahead_drag: Dictionary[String, Dictionary] = {}
@@ -199,16 +201,21 @@ func apply_event(event: Dictionary, confirms_local_action: bool = true) -> void:
 			var deck: Dictionary = event.decks.values()[0]
 			_seat_back = deck.top_card.deck_type
 	var origins: Dictionary[int, Vector3] = {}
-	var deck_origin: Variant = null
+	var hand_source: Card
+	var source_position: Variant = null
+	var source_back: Texture2D
 	if event.type in [&"deal", &"draw_top"]:
 		var deck_ids: Array = event.decks.keys() + event.removed_decks
-		var current: Deck = _decks.get(deck_ids[0])
-		if current != null:
-			deck_origin = current.global_position + Vector3.UP * 0.18
+		hand_source = _decks[deck_ids[0]]
+	elif event.type == &"drop_to_hand":
+		hand_source = _cards[event.removed_cards[0]]
+	if hand_source != null:
+		source_position = hand_source.top_surface_position()
+		source_back = hand_source.back_texture()
 	var retiring: Array[Card] = []
 	for uid: int in event.removed_cards:
 		var card: Card = _cards[uid]
-		origins[uid] = card.global_position
+		origins[uid] = card.top_surface_position()
 		_cards.erase(uid)
 		retiring.append(card)
 	for uid: int in event.removed_decks:
@@ -219,8 +226,8 @@ func apply_event(event: Dictionary, confirms_local_action: bool = true) -> void:
 		var row: Dictionary = event.cards[uid]
 		var fresh: bool = not _cards.has(uid)
 		_upsert_piece(TabletopState.CARD, uid, row)
-		if fresh and event.type == &"draw_top" and row.locked_by == _local_id and deck_origin != null:
-			_cards[uid].global_position = deck_origin
+		if fresh and event.type == &"draw_top" and row.locked_by == _local_id:
+			_cards[uid].global_position = source_position
 		if confirms_local_action:
 			_accept_hold(event.type, TabletopState.CARD, uid, row)
 	for uid: int in event.decks:
@@ -236,9 +243,9 @@ func apply_event(event: Dictionary, confirms_local_action: bool = true) -> void:
 		else:
 			_retire(card)
 	if event.has("hand"):
-		_hand.apply_hand(event.hand, _catalog, origins, deck_origin)
+		_hand.apply_hand(event.hand, _catalog, origins, source_position)
 	for player_id: String in event.hand_counts:
-		_set_seat_hand_count(player_id, event.hand_counts[player_id])
+		_set_seat_hand_count(player_id, event.hand_counts[player_id], source_position, source_back)
 	if _held_uid != 0:
 		var held: Card = _piece(_held_kind, _held_uid)
 		if held == null or held.locked_by != _local_id:
@@ -340,32 +347,43 @@ func _reset_pieces() -> void:
 		_set_seat_hand_count(player_id, 0)
 
 
-func _set_seat_hand_count(player_id: String, count: int) -> void:
+func _set_seat_hand_count(player_id: String, count: int, origin: Variant = null,
+		back: Texture2D = null) -> void:
 	if player_id == _local_id or not _seat_by_player.has(player_id):
 		return
 	var anchor: Node3D = hand_anchor(_seat_by_player[player_id])
 	var fan: Node3D = anchor.get_node("Fan")
 	var badge: Label3D = anchor.get_node("Count")
-	var shown: int = mini(count, 12)
+	var previous: int = _seat_hand_counts.get(player_id, 0)
+	_seat_hand_counts[player_id] = count
+	var shown: int = mini(count, MAX_SEAT_BACKS)
 	var children: Array[Node] = fan.get_children()
-	for i: int in range(shown, children.size()):
-		var card: Card = children[i]
+	# Keep the most recent slots visible when a full fan receives another deal.
+	var displaced: int = clampi(count - maxi(previous, MAX_SEAT_BACKS), 0, children.size())
+	for i: int in displaced:
+		var card: Card = children.pop_front()
+		fan.remove_child(card)
+		card.queue_free()
+	while children.size() > shown:
+		var card: Card = children.pop_back()
 		fan.remove_child(card)
 		card.queue_free()
 	for i: int in shown:
 		var card: Card
-		if i < children.size():
-			card = children[i]
-		else:
+		var fresh: bool = i >= children.size()
+		if fresh:
 			card = CARD_SCENE.instantiate()
 			fan.add_child(card)
 			card.set_seat_display()
-			card.set_card_sides(null, _catalog.get_back_texture(_seat_back), false, true)
+			card.set_card_sides(null, back if back != null else _catalog.get_back_texture(_seat_back), false, true)
+		else:
+			card = children[i]
 		var spread: float = float(i) - float(shown - 1) * 0.5
-		card.scale = Vector3.ONE * 0.59
-		card.position = Vector3(spread * minf(0.25, 1.9 / maxf(1.0, float(shown - 1))),
+		var slot: Vector3 = Vector3(spread * minf(0.25, 1.9 / maxf(1.0, float(shown - 1))),
 			0.03 + float(i) * 0.009, absf(spread) * 0.020)
-		card.rotation_degrees = Vector3(-12, spread * 3.2, 0)
+		card.set_seat_slot(slot, Vector3(-12, spread * 3.2, 0))
+		if fresh and origin != null:
+			card.fly_to_seat(origin, minf((i - children.size()) * 0.015, 0.075))
 	badge.text = str(count)
 	badge.visible = count > 0
 

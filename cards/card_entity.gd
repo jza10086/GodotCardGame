@@ -25,13 +25,15 @@ var _edge: ShaderMaterial = ShaderMaterial.new()
 var _thickness: float = PAPER
 var _height: float = PAPER
 var _face_up: bool = true
-var _flipped: bool = false
 var _target_flip: float = 0.0
+var _animation_lift: float = 0.0
 var _dragging: bool = false
 var _remote_lock: bool = false
 var _owner_color: Color
 var _table_yaw: float
 var _flight: Tween
+var _seat_position: Vector3
+var _seat_rotation: Vector3
 
 @onready var _visual: Node3D = %Visual
 @onready var _slab: MeshInstance3D = %Paper
@@ -79,9 +81,6 @@ func set_card_sides(front: Texture2D, back: Texture2D, face_up: bool, immediate:
 	_target_flip = 0.0 if _face_up else PI
 	if immediate:
 		_visual.rotation.x = _target_flip
-		_flipped = false
-	else:
-		_flipped = absf(_visual.rotation.x - _target_flip) > 0.01
 
 
 func set_floating() -> void:
@@ -96,6 +95,50 @@ func set_seat_display() -> void:
 	set_process(false)
 	_body.collision_layer = 0
 	_slab.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func top_surface_position() -> Vector3:
+	return _slab.global_position + Vector3.UP * (_height * 0.5 + PAPER * 0.5)
+
+
+func back_texture() -> Texture2D:
+	return _back.albedo_texture
+
+
+## Update the landing slot without restarting a flight during a later deal.
+func set_seat_slot(at: Vector3, angles: Vector3) -> void:
+	_seat_position = at
+	_seat_rotation = angles
+	if _flight == null or not _flight.is_running():
+		_land_in_seat()
+
+
+func fly_to_seat(origin: Vector3, delay: float) -> void:
+	var fan: Node3D = get_parent()
+	var start: Vector3 = fan.to_local(origin)
+	var height: float = clampf(start.distance_to(_seat_position) * 0.13, 0.55, 1.5)
+	position = start
+	rotation_degrees = Vector3.ZERO
+	scale = Vector3.ONE
+	hide()
+	_flight = create_tween()
+	_flight.tween_interval(delay)
+	_flight.tween_callback(show)
+	_flight.tween_method(_seat_flight_step.bind(start, height), 0.0, 1.0, 0.32)
+	_flight.tween_callback(_land_in_seat)
+
+
+func _seat_flight_step(progress: float, start: Vector3, height: float) -> void:
+	position = start.lerp(_seat_position, progress)
+	position.y += 4.0 * progress * (1.0 - progress) * height
+	rotation_degrees = _seat_rotation * progress
+	scale = Vector3.ONE.lerp(Vector3.ONE * 0.59, progress)
+
+
+func _land_in_seat() -> void:
+	position = _seat_position
+	rotation_degrees = _seat_rotation
+	scale = Vector3.ONE * 0.59
 
 
 func set_highlight(active: bool, merge: bool = false) -> void:
@@ -182,11 +225,9 @@ func _process(delta: float) -> void:
 	_visual.rotation.x = lerpf(_visual.rotation.x, _target_flip, flip_weight)
 	if absf(_visual.rotation.x - _target_flip) < 0.012:
 		_visual.rotation.x = _target_flip
-		_flipped = false
-	var flip_lift: float = absf(sin(_visual.rotation.x)) * LENGTH * 0.43 if _flipped else 0.0
 	var layers: float = float(y_order % 1000) * 0.00007
 	var hover_height: float = DRAG_HEIGHT if _dragging else 0.0
-	var destination: Vector3 = target_position + Vector3.UP * (_height * 0.5 + 0.009 + layers + flip_lift + hover_height)
+	var destination: Vector3 = target_position + Vector3.UP * (_height * 0.5 + 0.009 + layers + hover_height)
 	var planar_error: Vector3 = destination - position
 	position = position.lerp(destination, weight)
 	rotation.y = lerp_angle(rotation.y, target_yaw, weight)
@@ -195,6 +236,11 @@ func _process(delta: float) -> void:
 	var tilt_x: float = clampf(planar_error.dot(basis.z) * 0.19, -0.19, 0.19) if in_air else 0.0
 	_slab.rotation.x = lerpf(_slab.rotation.x, tilt_x, weight)
 	_slab.rotation.z = lerpf(_slab.rotation.z, tilt_z, weight)
+	# Raise the mesh in the same frame as it rotates. A smoothed lift can lag behind a flip.
+	var paper_basis: Basis = Basis(Vector3.RIGHT, _visual.rotation.x) * Basis.from_euler(_slab.rotation)
+	var clearance: float = (absf(paper_basis.x.y) * WIDTH + absf(paper_basis.y.y) * _height
+		+ absf(paper_basis.z.y) * LENGTH) * 0.5
+	_visual.position.y = maxf(0.0, clearance + 0.009 - position.y) + _animation_lift
 
 
 func _make_meshes() -> void:

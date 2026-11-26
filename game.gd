@@ -19,6 +19,9 @@ const PREVIEW_COLORS: Array[Color] = [
 @export var hud: TableHud
 @export_range(1, 8, 1) var preview_seat_count: int = 8
 
+## Optional factory assigned before play. Only the authority creates and owns the hook.
+var rule_hook_factory: Callable = SandboxRuleHook.new
+
 var api: PartyAPI
 var request: Dictionary
 var _state: TabletopState
@@ -128,7 +131,7 @@ func _start_authority(players: Array[Dictionary]) -> void:
 	for player: Dictionary in players:
 		ids.append(player.player_id)
 	_state = TabletopState.new(ids)
-	_rule_hook = SandboxRuleHook.new()
+	_rule_hook = rule_hook_factory.call()
 	_rule_hook.setup(_state, players, request)
 	var initial_preset: StringName = _rule_hook.get_initial_preset_id()
 	if initial_preset != &"":
