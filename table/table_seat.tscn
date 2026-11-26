@@ -46,3 +46,15 @@ autowrap_mode = 3
 [node name="HandBacksAnchor" type="Node3D" parent="."]
 position = Vector3(0, -0.13, -1.42)
 rotation = Vector3(0, 3.1415927, 0)
+
+[node name="Fan" type="Node3D" parent="HandBacksAnchor"]
+
+[node name="Count" type="Label3D" parent="HandBacksAnchor"]
+visible = false
+position = Vector3(1.16, 0.42, 0)
+billboard = 1
+pixel_size = 0.01
+font_size = 54
+outline_size = 10
+modulate = Color(1, 0.94, 0.79, 1)
+outline_modulate = Color(0.05, 0.08, 0.065, 1)

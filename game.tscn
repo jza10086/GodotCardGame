@@ -4,8 +4,9 @@
 [ext_resource type="PackedScene" path="table/table_stage.tscn" id="table"]
 [ext_resource type="PackedScene" path="ui/round_pages.tscn" id="pages"]
 [ext_resource type="PackedScene" path="res://games/protocols/GP_default_protocol/audio/game_audio.tscn" id="audio"]
+[ext_resource type="PackedScene" path="ui/table_hud.tscn" id="hud"]
 
-[node name="CardsGame" type="Control" groups=["party_minimal_hud"] node_paths=PackedStringArray("table_stage", "briefing", "settlement", "game_audio")]
+[node name="CardsGame" type="Control" groups=["party_minimal_hud"] node_paths=PackedStringArray("table_stage", "briefing", "settlement", "game_audio", "hud")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -18,9 +19,12 @@ table_stage = NodePath("TableStage")
 briefing = NodePath("ProtocolPages/Briefing")
 settlement = NodePath("ProtocolPages/Settlement")
 game_audio = NodePath("GameAudio")
+hud = NodePath("TableHud")
 
 [node name="TableStage" parent="." instance=ExtResource("table")]
 
 [node name="GameAudio" parent="." instance=ExtResource("audio")]
 
 [node name="ProtocolPages" parent="." instance=ExtResource("pages")]
+
+[node name="TableHud" parent="." instance=ExtResource("hud")]

@@ -1,5 +1,7 @@
 extends Node3D
 
+signal context_requested(at: Vector2)
+
 ## The pivot moves on the table plane; the pitch and distance stay relative to it.
 const MIN_PITCH: float = -80.0
 const MAX_PITCH: float = -24.0
@@ -18,6 +20,8 @@ var _home_distance: float
 var _target_distance: float
 var _overhead: bool = false
 var _drag_buttons: int = 0
+var _right_pending: bool = false
+var _right_origin: Vector2
 
 @onready var _pitch: Node3D = %Pitch
 @onready var _camera: Camera3D = %Camera3D
@@ -38,8 +42,17 @@ func configure(input_context: PartyInput, seat_yaw: float) -> void:
 
 func set_controls_active(active: bool) -> void:
 	_drag_buttons = 0
+	_right_pending = false
 	set_process(active)
 	set_process_unhandled_input(active)
+
+
+func reset_view() -> void:
+	_set_view(false)
+
+
+func toggle_overhead() -> void:
+	_set_view(not _overhead)
 
 
 func _set_view(overhead: bool) -> void:
@@ -55,6 +68,7 @@ func _set_view(overhead: bool) -> void:
 func _process(delta: float) -> void:
 	if _input_context != null and _input_context.input_blocked:
 		_drag_buttons = 0
+		_right_pending = false
 		return
 	var axes: Vector2 = Vector2(
 		float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)),
@@ -68,11 +82,18 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _input_context != null and _input_context.input_blocked:
 		_drag_buttons = 0
+		_right_pending = false
 		return
 	if event is InputEventMouseButton:
 		_mouse_button(event)
 	elif event is InputEventMouseMotion:
 		_drag_buttons &= event.button_mask
+		if _right_pending:
+			if not event.button_mask & MOUSE_BUTTON_MASK_RIGHT:
+				_right_pending = false
+			elif event.position.distance_squared_to(_right_origin) > 36.0:
+				_right_pending = false
+				_drag_buttons |= MOUSE_BUTTON_MASK_RIGHT
 		if _drag_buttons & MOUSE_BUTTON_MASK_RIGHT:
 			rotation_degrees.y -= event.screen_relative.x * ORBIT_SPEED
 			if not _overhead:
@@ -87,9 +108,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and not event.is_command_or_control_pressed() and not event.alt_pressed:
 		match event.physical_keycode:
 			KEY_SPACE:
-				_set_view(false)
+				reset_view()
 			KEY_V:
-				_set_view(not _overhead)
+				toggle_overhead()
 			_:
 				return
 		get_viewport().set_input_as_handled()
@@ -97,12 +118,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
-		MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
-			var mask: int = MOUSE_BUTTON_MASK_RIGHT if event.button_index == MOUSE_BUTTON_RIGHT else MOUSE_BUTTON_MASK_MIDDLE
+		MOUSE_BUTTON_RIGHT:
 			if event.pressed:
-				_drag_buttons |= mask
+				_right_origin = event.position
+				_right_pending = true
+				return
+			if _right_pending and event.position.distance_squared_to(_right_origin) <= 36.0:
+				context_requested.emit(event.position)
+			_right_pending = false
+			_drag_buttons &= ~MOUSE_BUTTON_MASK_RIGHT
+		MOUSE_BUTTON_MIDDLE:
+			if event.pressed:
+				_drag_buttons |= MOUSE_BUTTON_MASK_MIDDLE
 			else:
-				_drag_buttons &= ~mask
+				_drag_buttons &= ~MOUSE_BUTTON_MASK_MIDDLE
 		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
 			if not event.pressed:
 				return
@@ -125,3 +154,4 @@ func _pan(offset: Vector2) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_drag_buttons = 0
+		_right_pending = false

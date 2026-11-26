@@ -4,6 +4,25 @@
 [ext_resource type="Script" path="table_camera_rig.gd" id="camera"]
 [ext_resource type="PackedScene" path="table_seat.tscn" id="seat"]
 [ext_resource type="Shader" path="table_surface.gdshader" id="surface"]
+[ext_resource type="Script" path="../cards/floating_hand_3d.gd" id="hand"]
+[ext_resource type="PackedScene" path="../ui/context_menu.tscn" id="menu"]
+
+[sub_resource type="Shader" id="DropShader"]
+code = "shader_type spatial;
+render_mode unshaded, depth_draw_never, cull_disabled;
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float ring = smoothstep(0.62, 0.82, d) * (1.0 - smoothstep(0.84, 1.0, d));
+	ALBEDO = vec3(0.87, 0.74, 0.43);
+	ALPHA = ring * 0.56 + (1.0 - smoothstep(0.34, 0.80, d)) * 0.12;
+}"
+
+[sub_resource type="ShaderMaterial" id="DropMaterial"]
+shader = SubResource("DropShader")
+
+[sub_resource type="PlaneMesh" id="DropMesh"]
+material = SubResource("DropMaterial")
+size = Vector2(2.15, 2.15)
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -246,6 +265,12 @@ unique_name_in_owner = true
 [node name="DecksRoot" type="Node3D" parent="."]
 unique_name_in_owner = true
 
+[node name="DropMarker" type="MeshInstance3D" parent="."]
+unique_name_in_owner = true
+visible = false
+cast_shadow = 0
+mesh = SubResource("DropMesh")
+
 [node name="CursorsRoot" type="Node3D" parent="."]
 unique_name_in_owner = true
 
@@ -266,4 +291,8 @@ far = 125.0
 
 [node name="FloatingHandAnchor" type="Node3D" parent="CameraRig/Pitch/Camera3D"]
 unique_name_in_owner = true
-position = Vector3(0, -0.86, -2.2)
+position = Vector3(0, 0, -2.2)
+script = ExtResource("hand")
+
+[node name="ContextMenu" parent="." instance=ExtResource("menu")]
+unique_name_in_owner = true
