@@ -4,10 +4,10 @@
 
 [node name="Briefing" instance=ExtResource("briefing")]
 
-[node name="Title" parent="View/Layout/Center/Content" index="0"]
+[node name="Title" parent="View/Layout/Columns/LeftColumn/PreviewPanel/TitleInset" index="0"]
 text = "纸牌会客厅"
 
-[node name="InformationPanel" parent="View/Layout/Center/Content/Columns/RightColumn" index="1"]
+[node name="InformationPanel" parent="View/Layout/Columns/RightColumn" index="0"]
 visible = false
 
 [editable path="View"]
